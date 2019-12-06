@@ -66,3 +66,6 @@ Wilberforce Road, Cambridge CB3 0WA, United Kingdom
 
 
 ## Acknowledgements
+
+Image "Cat" by Lola Williams03 is licensed under CC0 1.0
+URL: https://www.flickr.com/photos/161321817@N06/38633459455

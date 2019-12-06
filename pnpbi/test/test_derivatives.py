@@ -17,6 +17,8 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with PNPBI. If not, see <http://www.gnu.org/licenses/>.
+import matplotlib.pyplot as plt
+from PIL import Image
 import numpy as np
 from pnpbi.util import derivatives
 import unittest
