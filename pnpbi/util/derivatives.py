@@ -17,30 +17,35 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with PNPBI. If not, see <http://www.gnu.org/licenses/>.
+"""Module provides helper functions for derivatives."""
 import numpy as np
 import scipy.sparse as sparse
 
 
 def deriv2dfw(m: int, n: int, hx: float, hy: float) -> (np.array, np.array):
-    """Takes the number of columns m, the number of rows n, and spatial scaling
+    """Create 2D forward finite difference matrices.
+
+    Takes the number of columns m, the number of rows n, and spatial scaling
     parameters hx and hy, and creates first order forward difference matrices
     Dx and Dy with Neumann boundary conditions.
 
     The gradient of a matrix f of size [n, m] is then given by
 
-        grad(f) = np.stack((f * Dx.transpose(), Dy * f), axis=2)
+    >>> gradf = np.stack((f * Dx.transpose(), Dy * f), axis=2)
 
     For v = (v1, v2), the adjoint -div(v) is then given by
 
-        -div(v) = v1 * Dx + Dy.transpose() * v2.
+    >>> divv = -(v1 * Dx + Dy.transpose() * v2)
 
     Args:
+    ----
         m (int): Number of columns. m > 1.
         n (int): Number of rows. n > 1.
         hx (float): Spatial scaling parameter in column axis.
         hy (float): Spatial scaling parameter in row axis.
 
-    Returns:
+    Return:
+    ------
         Dx (np.array): Array of shape (m, m).
         Dy (np.array): Array of shape (n, n).
     """
@@ -57,26 +62,30 @@ def deriv2dfw(m: int, n: int, hx: float, hy: float) -> (np.array, np.array):
 
 
 def vecderiv2dfw(m: int, n: int, hx: float, hy: float) -> (np.array, np.array):
-    """Takes the number of columns m, the number of rows n, and spatial scaling
+    """Create 2D forward finite difference matrices for vectorised input.
+
+    Takes the number of columns m, the number of rows n, and spatial scaling
     parameters hx and hy, and creates first order forward difference matrices
     Dx and Dy with Neumann boundary conditions.
 
     The gradient of a matrix f in vector form, i.e. shape (n*m, 1) is then
     given by
 
-        grad(f) = np.stack((Dx * f, Dy * f), axis=1)
+    >>> gradf = np.stack((Dx * f, Dy * f), axis=1)
 
     For v = (v1, v2), the adjoint -div(v) is then given by
 
-        -div(v) = Dx.transpose() * v1 + Dy.transpose() * v2.
+    >>> divv = -(Dx.transpose() * v1 + Dy.transpose() * v2).
 
     Args:
+    ----
         m (int): Number of columns. m > 1.
         n (int): Number of rows. n > 1.
         hx (float): Spatial scaling parameter in column axis.
         hy (float): Spatial scaling parameter in row axis.
 
-    Returns:
+    Return:
+    ------
         Dx (np.array): Array of shape (n*m, n*m).
         Dy (np.array): Array of shape (n*m, n*m).
     """

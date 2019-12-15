@@ -21,25 +21,31 @@ There are two ways to create the conda environment with the correct library vers
 a) Use the provided [`environment.yml`](environment.yml) file:
 
 ```bash
-conda env create -f environment.yml 
+conda env create -f environment.yml
 ```
 
 b) Manually create the environment:
 
 ```bash
-conda create -n pnpbi -c pytorch python=3.6 matplotlib
+conda create -n pnpbi -c astra-toolbox python=3.6 matplotlib astra-toolbox scipy pillow
 ```
 
 Then, activate the environment:
 
 ```bash
-conda activate pnpbi 
+conda activate pnpbi
+```
+
+Optional: install PyTorch:
+
+```bash
+conda install -c pytorch pytorch
 ```
 
 In order to run/edit the scripts using an IDE, install e.g. Spyder:
 
 ```bash
-conda install -c pytorch spyder 
+conda install -c astra-toolbox spyder
 ```
 
 Alternatively, you can use e.g. PyCharm and create a run environment by selecting anaconda3/envs/pnpbi environment.
@@ -49,23 +55,28 @@ Alternatively, you can use e.g. PyCharm and create a run environment by selectin
 To run the test cases, execute
 
 ```bash
-python -m unittest discover 
+python -m unittest discover
 ```
 
 ## License & Disclaimer
 
-This code is released under GNU GPL version 3. 
+This code is released under GNU GPL version 3.
 For the full license statement see the file [LICENSE](LICENSE).
 
 ## Contact
 
-[Lukas F. Lang](https://lukaslang.github.io) 
-Department of Applied Mathematics and Theoretical Physics  
-University of Cambridge  
+[Lukas F. Lang](https://lukaslang.github.io)
+Department of Applied Mathematics and Theoretical Physics
+University of Cambridge
 Wilberforce Road, Cambridge CB3 0WA, United Kingdom
 
 
 ## Acknowledgements
 
-Image "Cat" by Lola Williams03 is licensed under CC0 1.0
-URL: https://www.flickr.com/photos/161321817@N06/38633459455
+Image ["Cat"](https://www.flickr.com/photos/161321817@N06/38633459455) by Lola Williams03 is licensed under CC0 1.0
+
+Image "Brain" borrowed from:
+
+```
+M. Guerquin-Kern, L. Lejeune, K. P. Pruessmann, and M. Unser. Realistic analytical phantoms for parallel magnetic resonance imaging. IEEE Trans. Med. Imag., 31(3):626–636, 2012.
+```

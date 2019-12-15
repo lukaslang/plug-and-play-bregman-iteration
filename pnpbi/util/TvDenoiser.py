@@ -17,18 +17,21 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with PNPBI. If not, see <http://www.gnu.org/licenses/>.
+"""A Total Variation-based denoiser."""
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 class TvDenoiser:
     """A TV-based denoiser using the primal-dual hybrid gradient algorithm."""
 
     def __init__(self, x: np.array, alpha: float, Dx: np.array, Dy: np.array):
-        """Constructor takes an image, a regularisation parameter, and
+        """Initialise TvDenoiser.
+
+        Constructor takes an image, a regularisation parameter, and
         derivative operators.
 
         Args:
+        ----
             x (np.array): A grey-scale image in matrix form.
             alpha (float): A regularisation parameter.
             Dx (np.array): A matrix.
@@ -47,12 +50,14 @@ class TvDenoiser:
         return self.Dx.transpose() * y[:, 0] + self.Dy.transpose() * y[:, 1]
 
     def denoise(self, x: np.array, niter: int) -> np.array:
-        """Takes an initial image and returns a denoised image.
+        """Take an initial image and return a denoised image.
 
         Args:
+        ----
             x0 (np.array): A grey-scale image in matrix form.
 
-        Returns:
+        Return:
+        ------
             x (np.array): The denoised image in matrix form.
         """
         tau = 1.0 / np.sqrt(8)

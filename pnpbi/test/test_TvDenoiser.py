@@ -20,7 +20,7 @@
 import matplotlib.pyplot as plt
 from PIL import Image
 import numpy as np
-from pnpbi.denoise import TvDenoiser
+from pnpbi.util import TvDenoiser
 from pnpbi.util import derivatives
 import unittest
 

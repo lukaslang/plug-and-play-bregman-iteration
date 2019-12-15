@@ -1,0 +1,12 @@
+name: pnpbi
+channels:
+  - defaults
+  - astra-toolbox
+dependencies:
+  - pillow
+  - scipy
+  - astra-toolbox
+  - python=3.6
+  - matplotlib
+  - spyder
+prefix: /Users/lukaslang/anaconda3/envs/pnpbi
