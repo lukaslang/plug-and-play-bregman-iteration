@@ -45,7 +45,7 @@ conda install -c pytorch pytorch
 In order to run/edit the scripts using an IDE, install e.g. Spyder:
 
 ```bash
-conda install -c astra-toolbox spyder
+conda install spyder
 ```
 
 Alternatively, you can use e.g. PyCharm and create a run environment by selecting anaconda3/envs/pnpbi environment.

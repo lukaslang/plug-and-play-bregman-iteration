@@ -29,7 +29,10 @@ from pnpbi.util import radon
 def linBregmanIteration():
     """Compute linearised Bregman iteration for Radon inversion problem."""
     # Load phantom image.
-    f = np.asarray(Image.open('data/brain.png').convert('L'), dtype=float)
+    n = 256
+    f = np.asarray(Image.open('data/brain.png')
+                   .convert('L')
+                   .resize((n, n)), dtype=float)
     f = f / np.max(f)
     m, n = f.shape
 
@@ -41,12 +44,12 @@ def linBregmanIteration():
 
     # Generate data and add noise.
     y = K(f)
-    ydelta = y + 5 * np.random.randn(*y.shape)
+    ydelta = y + 0.05 * np.random.randn(*y.shape)
 
     # Define data fidelity and its gradient.
     def G(x: np.array) -> np.array:
         """Compute data fidelity function."""
-        return np.sum((K(x) - ydelta)**2) / 2
+        return np.sum((K(x) - ydelta) ** 2) / 2
 
     def gradG(x: np.array) -> np.array:
         """Compute gradient of data fidelity function."""
@@ -69,25 +72,38 @@ def linBregmanIteration():
     w = - tau * gradG(x)
 
     # Define regularisation parameter.
-    alpha = 1e3
+    alpha = 1
 
     # Run Bregman iteration.
-    nbiter = 20
+    nbiter = 100
     for i in range(nbiter):
 
         # Define denoiser.
         dn = TvDenoiser.TvDenoiser(w, alpha * tau, Dx, Dy)
-        niter = 500
+        niter = 50
 
         # Denoise.
-        x = dn.denoise(x, niter)
+        x = dn.denoise(np.zeros_like(w), niter)
+
+        plt.figure()
+        ax = plt.subplot(2, 2, 1)
+        plt.imshow(f, cmap='gray')
+        ax.set_title('f')
+        ax = plt.subplot(2, 2, 2)
+        plt.imshow(w, cmap='gray')
+        ax.set_title('w')
+        ax = plt.subplot(2, 2, 3)
+        plt.imshow(x, cmap='gray')
+        ax.set_title('x')
+        ax = plt.subplot(2, 2, 4)
+        plt.imshow(w - x, cmap='gray')
+        ax.set_title('w - x')
+        plt.tight_layout()
+        plt.show()
+        plt.close()
 
         # Update w.
         w -= tau * gradG(x)
-
-        plt.figure()
-        plt.imshow(x, cmap='gray')
-        plt.show()
 
 
 if __name__ == '__main__':

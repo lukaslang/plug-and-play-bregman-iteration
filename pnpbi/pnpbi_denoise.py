@@ -28,21 +28,19 @@ from pnpbi.util import derivatives
 def linBregmanIteration():
     """Compute linearised Bregman iteration for denoising problem."""
     # Load phantom image.
-    f = np.asarray(Image.open('data/cat.jpg').convert('L'), dtype=float)
+    n = 256
+    f = np.asarray(Image.open('data/brain.png')
+                   .convert('L')
+                   .resize((n, n)), dtype=float)
     f = f / np.max(f)
+    m, n = f.shape
 
     # Add noise.
     m, n = f.shape
     fdelta = f + 0.05 * np.random.randn(m, n)
 
-    # Show image.
-    plt.figure()
-    plt.imshow(fdelta, cmap='gray')
-    plt.show()
-
     # Create derivative operators.
-    hx, hy = 1, 1
-    Dx, Dy = derivatives.vecderiv2dfw(m, n, hx, hy)
+    Dx, Dy = derivatives.vecderiv2dfw(m, n, 1, 1)
 
     # Define data fidelity and its gradient.
     def G(x: np.array, y: np.array) -> np.array:
@@ -67,7 +65,7 @@ def linBregmanIteration():
 
         # Define denoiser.
         dn = TvDenoiser.TvDenoiser(w, alpha * tau, Dx, Dy)
-        niter = 50
+        niter = 100
 
         # Denoise.
         x = dn.denoise(x, niter)
@@ -76,8 +74,21 @@ def linBregmanIteration():
         w -= tau * gradG(x, fdelta)
 
         plt.figure()
+        ax = plt.subplot(2, 2, 1)
+        plt.imshow(f, cmap='gray')
+        ax.set_title('f')
+        ax = plt.subplot(2, 2, 2)
+        plt.imshow(w, cmap='gray')
+        ax.set_title('w')
+        ax = plt.subplot(2, 2, 3)
         plt.imshow(x, cmap='gray')
+        ax.set_title('x')
+        ax = plt.subplot(2, 2, 4)
+        plt.imshow(w - x, cmap='gray')
+        ax.set_title('w - x')
+        plt.tight_layout()
         plt.show()
+        plt.close()
 
 
 if __name__ == '__main__':
