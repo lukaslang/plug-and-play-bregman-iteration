@@ -57,10 +57,10 @@ def linBregmanIteration():
     w = - tau * gradG(x, fdelta)
 
     # Define regularisation parameter.
-    alpha = 1
+    alpha = 10
 
     # Run Bregman iteration.
-    nbiter = 20
+    nbiter = 100
     for i in range(nbiter):
 
         # Define denoiser.
@@ -76,15 +76,19 @@ def linBregmanIteration():
         plt.figure()
         ax = plt.subplot(2, 2, 1)
         plt.imshow(f, cmap='gray')
+        plt.colorbar()
         ax.set_title('f')
         ax = plt.subplot(2, 2, 2)
         plt.imshow(w, cmap='gray')
+        plt.colorbar()
         ax.set_title('w')
         ax = plt.subplot(2, 2, 3)
         plt.imshow(x, cmap='gray')
+        plt.colorbar()
         ax.set_title('x')
         ax = plt.subplot(2, 2, 4)
         plt.imshow(w - x, cmap='gray')
+        plt.colorbar()
         ax.set_title('w - x')
         plt.tight_layout()
         plt.show()
