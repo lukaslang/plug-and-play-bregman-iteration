@@ -72,7 +72,7 @@ def linBregmanIteration():
     w = - tau * gradG(x)
 
     # Define regularisation parameter.
-    alpha = 1
+    alpha = 5
 
     # Run Bregman iteration.
     nbiter = 100
