@@ -27,7 +27,7 @@ import torch.nn.functional as F
 class PnpBi(nn.Module):
     """An iterative model."""
 
-    def __init__(self, gradG, tau=1, niter=1):
+    def __init__(self, image_size, gradG, tau=1, niter=1):
         """Initialise model.
 
         Constructor takes the number of blocks and the number of channels.
@@ -38,7 +38,7 @@ class PnpBi(nn.Module):
             C (int): The number of channels.
         """
         super(PnpBi, self).__init__()
-
+        self.image_size = image_size
         self.gradG = gradG
         self.tau = nn.Parameter(torch.Tensor([tau]))
         self.niter = niter
@@ -58,7 +58,7 @@ class PnpBi(nn.Module):
             x (Tensor): The denoised image.
         """
         # Initialise data.
-        x = torch.zeros_like(fdelta)
+        x = torch.zeros(fdelta.shape[0], 1, *self.image_size)
         y = - self.tau * self.gradG(x, fdelta)
 
         # Run Bregman iteration.

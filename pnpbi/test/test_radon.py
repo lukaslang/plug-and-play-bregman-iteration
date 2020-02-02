@@ -32,7 +32,7 @@ class TestRadon(unittest.TestCase):
         angles = np.linspace(0, np.pi, 180, False)
 
         # Create operators.
-        K, Kadj = radon.radon2d(m, n, angles)
+        K, Kadj, ndet = radon.radon2d(m, n, angles)
 
         # Apply to dummy image.
         f = K(np.ones((m, n)))
@@ -50,7 +50,7 @@ class TestRadon(unittest.TestCase):
         angles = np.linspace(0, np.pi, 180, False)
 
         # Create operators.
-        K, Kadj = radon.radon2d(m, n, angles)
+        K, Kadj, ndet = radon.radon2d(m, n, angles)
 
         # Apply to dummy image.
         f = K(np.ones((m, n)))

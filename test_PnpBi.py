@@ -57,7 +57,7 @@ def gradG(x, y):
 
 
 PATH = './PnpBi_BSDS300.pth'
-net = PnpBi(gradG=gradG, tau=1e-1, niter=5)
+net = PnpBi(image_size, gradG=gradG, tau=1e-1, niter=5)
 net.load_state_dict(torch.load(PATH))
 
 with torch.no_grad():

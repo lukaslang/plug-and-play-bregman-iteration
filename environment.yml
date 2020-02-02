@@ -9,4 +9,8 @@ dependencies:
   - python=3.6
   - matplotlib
   - spyder
+  - pytorch
+  - torchvision
+  - pandas
 prefix: /Users/lukaslang/anaconda3/envs/pnpbi
+

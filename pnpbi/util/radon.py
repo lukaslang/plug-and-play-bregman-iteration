@@ -40,6 +40,7 @@ def radon2d(m: int, n: int, angles: np.array):
     Returns:
         K: A function that takes an array of shape (m, n).
         Kadj: A function that takes an array of shape (nangles, ndet).
+        ndet: The number of detectors used.
     """
     ndet = np.ceil(np.hypot(m, n)).astype(int)
     vol_geom = astra.create_vol_geom(m, n)
@@ -81,4 +82,4 @@ def radon2d(m: int, n: int, angles: np.array):
         astra.projector.delete(proj_id)
         return rec
 
-    return K, Kadj
+    return K, Kadj, ndet

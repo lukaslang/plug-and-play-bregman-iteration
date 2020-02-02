@@ -35,7 +35,7 @@ def landweber():
     angles = np.linspace(0, np.pi, 180, False)
 
     # Define Radon transform and adjoint.
-    K, Kadj = radon.radon2d(m, n, angles)
+    K, Kadj, ndet = radon.radon2d(m, n, angles)
 
     # Generate data and add noise.
     y = K(f)
