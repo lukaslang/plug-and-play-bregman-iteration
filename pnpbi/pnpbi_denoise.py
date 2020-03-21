@@ -29,7 +29,7 @@ def linBregmanIteration():
     """Compute linearised Bregman iteration for denoising problem."""
     # Load phantom image.
     n = 256
-    f = np.asarray(Image.open('data/brain.png')
+    f = np.asarray(Image.open('data/phantom.png')
                    .convert('L')
                    .resize((n, n)), dtype=float)
     f = f / np.max(f)
