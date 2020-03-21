@@ -89,7 +89,7 @@ class TestRadon(unittest.TestCase):
         K, Kadj, ndet = radon.radon2d(m, n, angles)
 
         # Plot original image.
-        plt.imshow(img)
+        plt.imshow(img, cmap='gray')
         plt.colorbar()
         plt.show()
 
@@ -97,7 +97,7 @@ class TestRadon(unittest.TestCase):
         f = K(img)
 
         # Plot data.
-        plt.imshow(f)
+        plt.imshow(f, cmap='gray')
         plt.colorbar()
         plt.show()
 
@@ -105,7 +105,7 @@ class TestRadon(unittest.TestCase):
         f = Kadj(f)
 
         # Plot result of backprojection.
-        plt.imshow(f)
+        plt.imshow(f, cmap='gray')
         plt.colorbar()
         plt.show()
 

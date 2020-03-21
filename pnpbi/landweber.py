@@ -27,7 +27,8 @@ from pnpbi.util import radon
 def landweber():
     """Compute a solution by Landweber iteration."""
     # Load phantom image.
-    f = np.asarray(Image.open('data/brain.png').convert('L'), dtype=float)
+    f = np.asarray(Image.open('data/phantom.png').convert('L'),
+                   dtype=np.double)
     f = f / np.max(f)
     m, n = f.shape
 
@@ -44,6 +45,7 @@ def landweber():
     # Show image.
     plt.figure()
     plt.imshow(ydelta, cmap='gray')
+    plt.colorbar()
     plt.show()
 
     # Initialise solution.
@@ -53,13 +55,14 @@ def landweber():
     omega = 2e-5
 
     # Run Landweber iteration.
-    nliter = 20
+    nliter = 30
     for i in range(nliter):
 
         x = x - omega * Kadj(K(x) - ydelta)
 
         plt.figure()
         plt.imshow(x, cmap='gray')
+        plt.colorbar()
         plt.show()
 
 

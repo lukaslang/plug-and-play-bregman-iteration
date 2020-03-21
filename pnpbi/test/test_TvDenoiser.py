@@ -45,7 +45,8 @@ class TestTvDenoiser(unittest.TestCase):
         np.testing.assert_allclose(y, x)
 
     def test_denoise_img(self):
-        x = np.asarray(Image.open('data/cat.jpg').convert('L'), dtype=float)
+        x = np.asarray(Image.open('data/phantom.png').convert('L'),
+                       dtype=np.double)
         x = x / np.max(x)
 
         # Add noise.
@@ -55,6 +56,7 @@ class TestTvDenoiser(unittest.TestCase):
         # Show image.
         plt.figure()
         plt.imshow(x, cmap='gray')
+        plt.colorbar()
         plt.show()
 
         # Create derivative operators.
@@ -68,6 +70,7 @@ class TestTvDenoiser(unittest.TestCase):
 
         plt.figure()
         plt.imshow(y, cmap='gray')
+        plt.colorbar()
         plt.show()
 
 

@@ -46,7 +46,7 @@ class TestOperator(unittest.TestCase):
         Op = LinearOperator.apply
 
         # Apply to dummy input.
-        x = torch.randn(m, n, requires_grad=True, dtype=torch.float64)
+        x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
         f = Op(x, K, Kadj)
 
         # Check for simple loss.
@@ -55,7 +55,7 @@ class TestOperator(unittest.TestCase):
         np.testing.assert_allclose(x.grad.numpy(), Kadj(np.ones((p, n))))
 
         # Check gradient.
-        x = torch.randn(m, n, requires_grad=True, dtype=torch.float64)
+        x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
         tag.gradcheck(lambda t: Op(t, K, Kadj), x)
 
     def test_LinearOperator_Matrix_Transpose(self):
@@ -76,7 +76,7 @@ class TestOperator(unittest.TestCase):
         Op = LinearOperator.apply
 
         # Apply to dummy input.
-        x = torch.randn(p, n, requires_grad=True, dtype=torch.float64)
+        x = torch.randn(p, n, requires_grad=True, dtype=torch.double)
         f = Op(x, Kadj, K)
 
         # Check for simple loss.
@@ -85,8 +85,38 @@ class TestOperator(unittest.TestCase):
         np.testing.assert_allclose(x.grad.numpy(), K(np.ones((m, n))))
 
         # Check gradient.
-        x = torch.randn(p, n, requires_grad=True, dtype=torch.float64)
+        x = torch.randn(p, n, requires_grad=True, dtype=torch.double)
         tag.gradcheck(lambda t: Op(t, Kadj, K), x)
+
+    def test_LinearOperator_Random_Matrix(self):
+        # Set image size.
+        m, n = 19, 23
+
+        # Create an underdetermined random system.
+        p = 5
+        M = sparse.rand(p, m, density=0.1, dtype=np.double)
+
+        def K(x):
+            return M @ x
+
+        def Kadj(y):
+            return M.T @ y
+
+        # Create function.
+        Op = LinearOperator.apply
+
+        # Apply to dummy input.
+        x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
+        f = Op(x, K, Kadj)
+
+        # Check for simple loss.
+        loss = f.sum()
+        loss.backward()
+        np.testing.assert_allclose(x.grad.numpy(), Kadj(np.ones((p, n))))
+
+        # Check gradient.
+        x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
+        tag.gradcheck(lambda t: Op(t, K, Kadj), x)
 
     def test_LinearOperator_radon(self):
         # Set image size.
@@ -103,7 +133,7 @@ class TestOperator(unittest.TestCase):
         Op = LinearOperator.apply
 
         # Apply to dummy input.
-        x = torch.randn(m, n, requires_grad=True, dtype=torch.float64)
+        x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
         f = Op(x, K, Kadj)
 
         # Check for simple loss.
@@ -112,8 +142,19 @@ class TestOperator(unittest.TestCase):
         np.testing.assert_allclose(x.grad.numpy(),
                                    Kadj(np.ones((nangles, ndet))))
 
-        # Check gradient.
-        x = torch.randn(m, n, requires_grad=True, dtype=torch.float64)
+        def op_fun(x):
+            out = LinearOperator.apply(x, K, Kadj)
+            return out.sum()
+
+        # Check for anomalies.
+        with tag.detect_anomaly():
+            x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
+            out = op_fun(x)
+            out.backward()
+
+        # Check numerical gradient up to certain tolerance.
+        # Due to inaccuracy of adjoint this check fails.
+        x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
         tag.gradcheck(lambda t: Op(t, K, Kadj), x)
 
 
