@@ -19,7 +19,9 @@
 #    along with PNPBI. If not, see <http://www.gnu.org/licenses/>.
 import numpy as np
 from pnpbi.util import radon
+from PIL import Image
 import unittest
+import matplotlib.pyplot as plt
 
 
 class TestRadon(unittest.TestCase):
@@ -67,8 +69,45 @@ class TestRadon(unittest.TestCase):
         # Create second random matrix.
         y = np.random.rand(p, q)
 
+        # Check adjointness up to certain relative tolerance.
         np.testing.assert_allclose(np.dot(K(x).flatten(), y.flatten()),
-                                   np.dot(x.flatten(), Kadj(y).flatten()))
+                                   np.dot(x.flatten(), Kadj(y).flatten()),
+                                   1e-3)
+
+    def test_radon2d_plot(self):
+
+        img = Image.open('data/Phantom/images/test/phantom.png').convert('L')
+        img = np.array(img)
+
+        # Set image size.
+        m, n = img.shape
+
+        # Define angles.
+        angles = np.linspace(0, np.pi, 180, False)
+
+        # Create operators.
+        K, Kadj, ndet = radon.radon2d(m, n, angles)
+
+        # Plot original image.
+        plt.imshow(img)
+        plt.colorbar()
+        plt.show()
+
+        # Apply to dummy image.
+        f = K(img)
+
+        # Plot data.
+        plt.imshow(f)
+        plt.colorbar()
+        plt.show()
+
+        # Apply to dummy data.
+        f = Kadj(f)
+
+        # Plot result of backprojection.
+        plt.imshow(f)
+        plt.colorbar()
+        plt.show()
 
 
 if __name__ == '__main__':

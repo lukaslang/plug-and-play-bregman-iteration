@@ -32,19 +32,23 @@ def radon2d(m: int, n: int, angles: np.array):
     >>> ndet = np.ceil(np.hypot(m, n)).astype(int)
 
     Args:
+    ----
         m (int): Number of rows. m > 1.
         n (int): Number of columns. n > 1.
         angles (np.array): An array specifying measurement angles in rad in the
         range [0, pi].
 
-    Returns:
+    Return:
+    ------
         K: A function that takes an array of shape (m, n).
         Kadj: A function that takes an array of shape (nangles, ndet).
         ndet: The number of detectors used.
     """
-    ndet = np.ceil(np.hypot(m, n)).astype(int)
+    ndet = np.ceil(1.5 * np.hypot(m, n)).astype(int)
+    det_spacing = 1
     vol_geom = astra.create_vol_geom(m, n)
-    proj_geom = astra.create_proj_geom('parallel', 1.0, ndet, angles)
+    proj_geom = astra.create_proj_geom('parallel',
+                                       det_spacing, ndet, angles)
 
     def K(x):
         # Create sinogram.
