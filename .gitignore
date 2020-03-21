@@ -4,3 +4,5 @@ data/cifar-10-batches-py
 *.zip
 *.gz
 legacy
+data/DICOM
+data/Phantom

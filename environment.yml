@@ -1,9 +1,10 @@
 name: pnpbi
 channels:
+  - pytorch
   - defaults
   - astra-toolbox
 dependencies:
-  - pillow
+  - pillow=6.2.1
   - scipy
   - astra-toolbox
   - python=3.6
@@ -12,5 +13,5 @@ dependencies:
   - pytorch
   - torchvision
   - pandas
+  - pydicom
 prefix: /Users/lukaslang/anaconda3/envs/pnpbi
-
