@@ -23,7 +23,7 @@ from PIL import Image
 import numpy as np
 from pnpbi.util import TvDenoiser
 from pnpbi.util import derivatives
-from phpbi.util import helper
+from pnpbi.util import helper
 
 
 def linBregmanIteration():

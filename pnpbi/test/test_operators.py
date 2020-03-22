@@ -18,7 +18,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with PNPBI. If not, see <http://www.gnu.org/licenses/>.
 from pnpbi.util import radon
-from pnpbi.util.operators import LinearOperator
+from pnpbi.util.torch.operators import LinearOperator
 import scipy.sparse as sparse
 import numpy as np
 import torch

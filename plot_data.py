@@ -23,7 +23,7 @@ import numpy as np
 import torch
 import torchvision
 from pnpbi.dncnn.data import NoisyBSDSDataset
-from pnpbi.util import operators
+from pnpbi.util.torch import operators
 
 # Define data.
 image_dir = './data/BSDS300/images'
