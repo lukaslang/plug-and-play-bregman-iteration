@@ -69,6 +69,7 @@ G, gradG = functionals.OpSqNormDataTerm(Kfun, Kadjfun)
 denoising_model = model.DnCNN(D=6, C=64)
 net = model.PG(denoising_model, image_size, gradG=gradG, tau=0.01, niter=5)
 net.load_state_dict(torch.load(model_path))
+net.eval()
 
 
 def imshow(img):
