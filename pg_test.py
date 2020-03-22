@@ -60,10 +60,10 @@ def K(x: torch.Tensor):
 Kadj = K
 
 # Create function handles for use with torch.
-operators.create_op_functions(K, Kadj, image_size, image_size)
+Kfun, Kadjfun = operators.create_op_functions(K, Kadj, image_size, image_size)
 
 # Create data fidelity and its gradient.
-G, gradG = functionals.OpSqNormDataTerm(K, Kadj)
+G, gradG = functionals.OpSqNormDataTerm(Kfun, Kadjfun)
 
 # Create model and load if present.
 denoising_model = model.DnCNN(D=6, C=64)
