@@ -17,16 +17,51 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with PNPBI. If not, see <http://www.gnu.org/licenses/>.
-"""Linearised Bregman iteration for image denoising."""
+"""Runs linearised Bregman iteration for a given operator."""
 import matplotlib.pyplot as plt
 from PIL import Image
 import numpy as np
 from pnpbi.util import TvDenoiser
 from pnpbi.util import derivatives
+from pnpbi.util import functionals
+from pnpbi.util import radon
+
+
+def setup_denoising_problem(f: np.array):
+    """Set up reconstruction problem using Radon transform."""
+    m, n = f.shape
+
+    # Generate data and add noise.
+    ydelta = f + 0.05 * np.random.randn(m, n)
+
+    # Define data fidelity and its gradient.
+    G, gradG = functionals.SqNormDataTerm(ydelta)
+
+    return ydelta, G, gradG
+
+
+def setup_reconstruction_problem(f: np.array):
+    """Set up reconstruction problem using Radon transform."""
+    m, n = f.shape
+
+    # Define angles.
+    angles = np.linspace(0, np.pi, 180, False)
+
+    # Define Radon transform and adjoint.
+    K, Kadj, ndet = radon.radon2d(m, n, angles)
+
+    # Generate data and add noise.
+    y = K(f)
+    ydelta = y + 0.05 * np.random.randn(*y.shape)
+
+    # Define data fidelity and its gradient.
+    G, gradG = functionals.OpSqNormDataTerm(K, Kadj, ydelta)
+
+    return ydelta, G, gradG
 
 
 def linBregmanIteration():
-    """Compute linearised Bregman iteration for denoising problem."""
+    """Compute linearised Bregman iteration for Radon inversion problem."""
     # Load phantom image.
     n = 256
     f = np.asarray(Image.open('data/phantom.png')
@@ -35,29 +70,30 @@ def linBregmanIteration():
     f = f / np.max(f)
     m, n = f.shape
 
-    # Add noise.
-    m, n = f.shape
-    fdelta = f + 0.05 * np.random.randn(m, n)
+    # Set up reconstruction problem.
+    # ydelta, G, gradG = setup_reconstruction_problem(f)
+    # tau = 2e-5
+    # alpha = 5
+
+    # Set up denoising problem.
+    ydelta, G, gradG = setup_denoising_problem(f)
+    tau = 1e-2
+    alpha = 5
+
+    # Show image.
+    plt.figure()
+    plt.imshow(ydelta, cmap='gray')
+    plt.show()
 
     # Create derivative operators.
     Dx, Dy = derivatives.vecderiv2dfw(m, n, 1, 1)
 
-    # Define data fidelity and its gradient.
-    def G(x: np.array, y: np.array) -> np.array:
-        """Compute data fidelity function."""
-        return np.sum((x - y)**2) / 2
-
-    def gradG(x: np.array, y: np.array) -> np.array:
-        """Compute gradient of data fidelity function."""
-        return x - y
+    # Initialise solution.
+    x = np.zeros_like(f)
 
     # Initialise data.
-    tau = 0.01
-    x = np.zeros_like(fdelta)
-    w = - tau * gradG(x, fdelta)
-
-    # Define regularisation parameter.
-    alpha = 10
+    x = np.zeros_like(f)
+    w = - tau * gradG(x)
 
     # Run Bregman iteration.
     nbiter = 100
@@ -68,10 +104,7 @@ def linBregmanIteration():
         niter = 100
 
         # Denoise.
-        x = dn.denoise(x, niter)
-
-        # Update w.
-        w -= tau * gradG(x, fdelta)
+        x = dn.denoise(np.zeros_like(w), niter)
 
         plt.figure()
         ax = plt.subplot(2, 2, 1)
@@ -93,6 +126,9 @@ def linBregmanIteration():
         plt.tight_layout()
         plt.show()
         plt.close()
+
+        # Update w.
+        w -= tau * gradG(x)
 
 
 if __name__ == '__main__':
