@@ -29,6 +29,8 @@ from pnpbi.util import TvDenoiser
 from pnpbi.util import derivatives
 import matplotlib.pyplot as plt
 from pnpbi.util import radon
+import pydicom
+from pydicom.data import get_testdata_files
 
 
 class NoisyDataset(Dataset):
@@ -80,6 +82,10 @@ class NoisyCTDataset(Dataset):
         j = np.random.randint(clean.size[1] - self.image_size[1])
 
         clean = clean.crop([i, j, i+self.image_size[0], j+self.image_size[1]])
+
+        # Pad.
+
+
         transform = transforms.Compose([
             transforms.Grayscale(),
             # convert it to a tensor
@@ -87,13 +93,61 @@ class NoisyCTDataset(Dataset):
             # normalize it to the range [−1, 1]
             transforms.Normalize([.5], [.5])
         ])
-        clean = transform(clean)
+        clean = transform(clean).unsqueeze(0)
 
         # Generate data and add noise.
-        print('getitem')
-        data = self.K(clean.squeeze(0)).unsqueeze(0)
+        data = self.K(clean)
         noisy = data + 2 / 255 * self.sigma * torch.randn(data.shape)
+
         return noisy, clean
+
+class NoisyDCIMDataset(Dataset):
+
+    def __init__(self, K, root_dir, mode='train', image_size=(100, 100), sigma=30):
+        super(NoisyDCIMDataset, self).__init__()
+        self.mode = mode
+        self.image_size = image_size
+        self.sigma = sigma
+        self.images_dir = os.path.join(root_dir, mode)
+        self.files = os.listdir(self.images_dir)
+        self.K = K
+
+    def __len__(self):
+        return len(self.files)
+
+    def __repr__(self):
+        return "NoisyBSDSDataset(mode={}, image_size={}, sigma={})". \
+            format(self.mode, self.image_size, self.sigma)
+
+    def __getitem__(self, idx):
+        img_path = os.path.join(self.images_dir, self.files[idx])
+
+      #  filename = get_testdata_files(img_path)
+        dataset = pydicom.dcmread(img_path)
+        #clean = dataset.pixel_array
+        clean = Image.fromarray(dataset.pixel_array)
+
+        #clean = Image.open(img_path).convert('RGB')
+        # random crop
+        i = np.random.randint(clean.size[0] - self.image_size[0])
+        j = np.random.randint(clean.size[1] - self.image_size[1])
+
+        clean = clean.crop([i, j, i+self.image_size[0], j+self.image_size[1]])
+        transform = transforms.Compose([
+            transforms.Grayscale(),
+            # convert it to a tensor
+            transforms.ToTensor(),
+            # normalize it to the range [−1, 1]
+            transforms.Normalize([.5], [.5])
+        ])
+        clean = transform(clean).unsqueeze(0)
+
+        # Generate data and add noise.
+        data = self.K(clean)
+        noisy = data + 2 / 255 * self.sigma * torch.randn(data.shape)
+
+        return noisy, clean
+
 
 
 class NoisyBSDSDataset(Dataset):
@@ -128,6 +182,7 @@ class NoisyBSDSDataset(Dataset):
             # normalize it to the range [−1, 1]
             transforms.Normalize([.5], [.5])
         ])
+        #clean = transform(clean).unsqueeze(0)
         clean = transform(clean)
 
         noisy = clean + 2 / 255 * self.sigma * torch.randn(clean.shape)

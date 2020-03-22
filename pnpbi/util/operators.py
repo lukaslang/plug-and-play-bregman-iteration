@@ -21,6 +21,42 @@
 import torch
 
 
+def create_op_functions(K, Kadj, image_size, data_size):
+    """Create operater functions for use with torch.
+
+    Args:
+    ----
+        K, Kadj: Function handles for a linear operator and its adjoint.
+        image_size (tuple): A tuple specifying the image size, e.g. (m, n).
+        data_size (tuple): The data size, e.g. (nangles, ndet).
+
+    Return:
+    ------
+        Kfun, Kadjfun: Generic function handles for use with torch functions.
+    """
+    # Create function for linear operator.
+    Op = LinearOperator.apply
+
+    # Create torch function that applies operator.
+    def Kfun(x):
+        nimg = x.shape[0]
+        y = torch.ones((nimg, 1, *data_size))
+        for k in range(nimg):
+            y[k][0] = Op(x[k][0], K, Kadj)
+        return y
+
+    # Create torch function that applies adjoint operator.
+    def Kadjfun(x):
+        nimg = x.shape[0]
+        y = torch.ones((nimg, 1, *image_size))
+        for k in range(nimg):
+            y[k][0] = Op(x[k][0], Kadj, K)
+        return y
+
+    # Return function handles.
+    return Kfun, Kadjfun
+
+
 class LinearOperator(torch.autograd.Function):
     """An linear operator."""
 

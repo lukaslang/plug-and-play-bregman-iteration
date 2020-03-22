@@ -24,38 +24,42 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class PnpBi(nn.Module):
-    """An iterative model."""
+class PG(nn.Module):
+    """Model for proximal gradient (PG) method."""
 
-    def __init__(self, image_size, gradG, tau=1, niter=1):
+    def __init__(self, model, image_size, gradG, tau=1, niter=1):
         """Initialise model.
 
         Constructor takes the number of blocks and the number of channels.
 
         Args:
         ----
-            D (int): The number of Conv-Bias-Normalisation-ReLU blocks.
-            C (int): The number of channels.
+            model (nn.Module): A neural network.
+            image_size (tuple): The size of the image (m, n).
+            gradG: A function handle to evaluate the gradient of the data
+                fidelity term.
+            tau (double): Step size parameter.
+            niter (int): The number of iterations used during PG method.
         """
-        super(PnpBi, self).__init__()
+        super(PG, self).__init__()
         self.image_size = image_size
         self.gradG = gradG
         self.tau = nn.Parameter(torch.Tensor([tau]))
         self.niter = niter
 
         # Define denoising model.
-        self.model = DnCNN()
+        self.model = model
 
     def forward(self, fdelta):
         """Compute the forward pass for given put data.
 
         Args:
         ----
-            x (Tensor): A noisy input image.
+            x (Tensor): (Noisy) input data.
 
         Return:
         ------
-            x (Tensor): The denoised image.
+            x (Tensor): The reconstructed data.
         """
         # Initialise data.
         x = torch.zeros(fdelta.shape[0], 1, *self.image_size)

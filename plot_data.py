@@ -17,27 +17,30 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with PNPBI. If not, see <http://www.gnu.org/licenses/>.
-"""Evaluates a CNN image denoiser."""
+"""Plots the training set."""
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torchvision
 from pnpbi.dncnn.data import NoisyBSDSDataset
-from pnpbi.dncnn.model import PnpBi
-
-
-def imshow(img):
-    img = img / 2 + 0.5     # unnormalize
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
-
+from pnpbi.util import operators
 
 # Define data.
 image_dir = './data/BSDS300/images'
 image_size = (100, 100)
 sigma = 30
 
+# Define path for model.
+model_path = './pg_BSDS300.pth'
+
+# Define training set.
+trainset = NoisyBSDSDataset(image_dir, mode='train',
+                            image_size=image_size, sigma=sigma)
+trainset = torch.utils.data.Subset(trainset, list(range(0, 40)))
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=4,
+                                          shuffle=True, num_workers=2)
+
+# Define test set.
 testset = NoisyBSDSDataset(image_dir, mode='test',
                            image_size=image_size, sigma=sigma)
 testset = torch.utils.data.Subset(testset, list(range(0, 10)))
@@ -45,37 +48,30 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=4,
                                          shuffle=False, num_workers=2)
 
 
-# Define data fidelity and its gradient.
-def G(x, y):
-    """Compute data fidelity function."""
-    return torch.sum((x - y) ** 2) / 2
+# Define identity operator for denoising.
+def K(x: torch.Tensor):
+    """Identity operator."""
+    return x
 
 
-def gradG(x, y):
-    """Compute gradient of data fidelity function."""
-    return x - y
+# Define adjoint.
+Kadj = K
+
+# Create function handles for use with torch.
+operators.create_op_functions(K, Kadj, image_size, image_size)
 
 
-PATH = './PnpBi_BSDS300.pth'
-net = PnpBi(image_size, gradG=gradG, tau=1e-1, niter=5)
-net.load_state_dict(torch.load(PATH))
+def imshow(img):
+    # Unnormalise for plotting.
+    img = img / 2 + 0.5
+    npimg = img.numpy()
+    plt.imshow(np.transpose(npimg, (1, 2, 0)), cmap='gray')
+    plt.colorbar()
+    plt.show()
 
-with torch.no_grad():
-    for data in testloader:
-        images, labels = data
-        outputs = net(images)
-        imshow(torchvision.utils.make_grid(images))
-        imshow(torchvision.utils.make_grid(labels))
-        imshow(torchvision.utils.make_grid(outputs))
 
-        # plt.figure()
-        # ax = plt.subplot(1, 3, 1)
-        # plt.imshow(images[0, 0], cmap='gray')
-        # plt.colorbar()
-        # ax = plt.subplot(1, 3, 2)
-        # plt.imshow(labels[0, 0], cmap='gray')
-        # plt.colorbar()
-        # ax = plt.subplot(1, 3, 3)
-        # plt.imshow(outputs[0, 0], cmap='gray')
-        # plt.colorbar()
-        # plt.show()
+for data in testloader:
+    images, labels = data
+    imshow(torchvision.utils.make_grid(images))
+    imshow(torchvision.utils.make_grid(Kadj(images)))
+    imshow(torchvision.utils.make_grid(labels))

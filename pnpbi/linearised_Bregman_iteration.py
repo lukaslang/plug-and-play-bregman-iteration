@@ -23,41 +23,7 @@ from PIL import Image
 import numpy as np
 from pnpbi.util import TvDenoiser
 from pnpbi.util import derivatives
-from pnpbi.util import functionals
-from pnpbi.util import radon
-
-
-def setup_denoising_problem(f: np.array):
-    """Set up reconstruction problem using Radon transform."""
-    m, n = f.shape
-
-    # Generate data and add noise.
-    ydelta = f + 0.05 * np.random.randn(m, n)
-
-    # Define data fidelity and its gradient.
-    G, gradG = functionals.SqNormDataTerm(ydelta)
-
-    return ydelta, G, gradG
-
-
-def setup_reconstruction_problem(f: np.array):
-    """Set up reconstruction problem using Radon transform."""
-    m, n = f.shape
-
-    # Define angles.
-    angles = np.linspace(0, np.pi, 180, False)
-
-    # Define Radon transform and adjoint.
-    K, Kadj, ndet = radon.radon2d(m, n, angles)
-
-    # Generate data and add noise.
-    y = K(f)
-    ydelta = y + 0.05 * np.random.randn(*y.shape)
-
-    # Define data fidelity and its gradient.
-    G, gradG = functionals.OpSqNormDataTerm(K, Kadj, ydelta)
-
-    return ydelta, G, gradG
+from phpbi.util import helper
 
 
 def linBregmanIteration():
@@ -71,12 +37,12 @@ def linBregmanIteration():
     m, n = f.shape
 
     # Set up reconstruction problem.
-    # ydelta, G, gradG = setup_reconstruction_problem(f)
+    # ydelta, G, gradG = helper.setup_reconstruction_problem(f)
     # tau = 2e-5
     # alpha = 5
 
     # Set up denoising problem.
-    ydelta, G, gradG = setup_denoising_problem(f)
+    ydelta, G, gradG = helper.setup_denoising_problem(f)
     tau = 1e-2
     alpha = 5
 

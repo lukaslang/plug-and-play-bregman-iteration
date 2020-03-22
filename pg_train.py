@@ -17,47 +17,68 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with PNPBI. If not, see <http://www.gnu.org/licenses/>.
-"""Trains a CNN image denoiser."""
+"""Trains a CNN image reconstruction network using the PG method."""
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from pnpbi.dncnn.data import NoisyBSDSDataset, NoisyBSDSDatasetTV
-from pnpbi.dncnn.model import DnCNN, DUDnCNN
+from pnpbi.dncnn.data import NoisyBSDSDataset
+from pnpbi.dncnn import model
+from pnpbi.util import operators
+from pnpbi.util.torch import functionals
 
 # Define data.
-image_dir = './data/BSDS300/images'
-image_size = (128, 128)
+image_dir = './data/phantom/images'
+image_size = (100, 100)
 sigma = 30
-alpha = 1
 
-# trainset = NoisyBSDSDataset(image_dir, mode='train',
-#                             image_size=image_size, sigma=sigma)
-trainset = NoisyBSDSDatasetTV(image_dir, mode='train',
-                              image_size=image_size, sigma=sigma, alpha=alpha)
-# trainset = torch.utils.data.Subset(trainset, list(range(0, 100)))
+# Define path for model.
+model_path = './pg_phantom.pth'
+
+# Define training set.
+trainset = NoisyBSDSDataset(image_dir, mode='train',
+                            image_size=image_size, sigma=sigma)
+trainset = torch.utils.data.Subset(trainset, list(range(0, 40)))
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=4,
                                           shuffle=True, num_workers=2)
 
-# testset = NoisyBSDSDataset(image_dir, mode='test',
-#                           image_size=image_size, sigma=sigma)
-testset = NoisyBSDSDatasetTV(image_dir, mode='test',
-                             image_size=image_size, sigma=sigma, alpha=alpha)
-# testset = torch.utils.data.Subset(testset, list(range(0, 10)))
+# Define test set.
+testset = NoisyBSDSDataset(image_dir, mode='test',
+                           image_size=image_size, sigma=sigma)
+testset = torch.utils.data.Subset(testset, list(range(0, 10)))
 testloader = torch.utils.data.DataLoader(testset, batch_size=4,
                                          shuffle=False, num_workers=2)
 
 
-# net = DnCNN()
-net = DUDnCNN()
+# Define identity operator for denoising.
+def K(x: torch.Tensor):
+    """Identity operator."""
+    return x
 
+
+# Define adjoint.
+Kadj = K
+
+# Create function handles for use with torch.
+operators.create_op_functions(K, Kadj, image_size, image_size)
+
+# Create data fidelity and its gradient.
+G, gradG = functionals.OpSqNormDataTerm(K, Kadj)
+
+# Create model and load if present.
+denoising_model = model.DnCNN(D=6, C=64)
+net = model.PG(denoising_model, image_size, gradG=gradG, tau=0.01, niter=5)
+# net.load_state_dict(torch.load(model_path))
+
+# Define optimisation problem.
 criterion = nn.MSELoss()
 # optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 optimizer = optim.Adam(net.parameters(), lr=1e-3)
 
-for epoch in range(5):  # loop over the dataset multiple times
+# Start training.
+num_epochs = 5
+for epoch in range(num_epochs):
     running_loss = 0.0
     for i, data in enumerate(trainloader, 0):
-        # get the inputs; data is a list of [inputs, labels]
         inputs, labels = data
 
         # zero the parameter gradients
@@ -72,11 +93,10 @@ for epoch in range(5):  # loop over the dataset multiple times
         # print statistics
         running_loss += loss.item()
         if i % 10 == 9:    # print every 10 mini-batches
+            print('Learned tau is {0:0.3f}'.format(net.tau[0]))
             print('[%d, %5d] loss: %.5f' %
                   (epoch + 1, i + 1, running_loss / 10))
             running_loss = 0.0
 
 print('Finished Training')
-
-PATH = './DnCNN_BSDS300.pth'
-torch.save(net.state_dict(), PATH)
+torch.save(net.state_dict(), model_path)
