@@ -44,7 +44,8 @@ class PG(nn.Module):
         super(PG, self).__init__()
         self.image_size = image_size
         self.gradG = gradG
-        self.tau = nn.Parameter(torch.Tensor([tau]))
+        # self.tau = nn.Parameter(torch.Tensor([tau]))
+        self.tau = tau
         self.niter = niter
 
         # Define denoising model.
@@ -75,6 +76,14 @@ class PG(nn.Module):
             y = y - self.tau * self.gradG(x, fdelta)
 
         return x
+
+    def eval(self):
+        """Evaluate model."""
+        self.model.eval()
+
+    def train(self):
+        """Set model to training mode."""
+        self.model.train()
 
 
 class DnCNN(nn.Module):

@@ -71,7 +71,7 @@ class NoisyCTDataset(Dataset):
         return len(self.files)
 
     def __repr__(self):
-        return "NoisyBSDSDataset(mode={}, image_size={}, sigma={})". \
+        return "NoisyCTDataset(mode={}, image_size={}, sigma={})". \
             format(self.mode, self.image_size, self.sigma)
 
     def __getitem__(self, idx):
@@ -83,21 +83,18 @@ class NoisyCTDataset(Dataset):
 
         clean = clean.crop([i, j, i+self.image_size[0], j+self.image_size[1]])
 
-        # Pad.
-
-
         transform = transforms.Compose([
             transforms.Grayscale(),
             # convert it to a tensor
             transforms.ToTensor(),
-            # normalize it to the range [−1, 1]
-            transforms.Normalize([.5], [.5])
+            # normalize it to the range [0, 1]
+            transforms.Normalize([0], [1])
         ])
-        clean = transform(clean).unsqueeze(0)
+        clean = transform(clean)
 
         # Generate data and add noise.
-        data = self.K(clean)
-        noisy = data + 2 / 255 * self.sigma * torch.randn(data.shape)
+        data = self.K(clean.unsqueeze(0)).squeeze(0)
+        noisy = data + self.sigma**2 * data.var() * data.max() * torch.randn(data.shape)
 
         return noisy, clean
 
@@ -182,7 +179,6 @@ class NoisyBSDSDataset(Dataset):
             # normalize it to the range [−1, 1]
             transforms.Normalize([.5], [.5])
         ])
-        #clean = transform(clean).unsqueeze(0)
         clean = transform(clean)
 
         noisy = clean + 2 / 255 * self.sigma * torch.randn(clean.shape)

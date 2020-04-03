@@ -24,7 +24,7 @@ from pnpbi.util import radon
 
 
 def setup_denoising_problem(f: np.array):
-    """Set up reconstruction problem using Radon transform."""
+    """Set up denoising problem."""
     m, n = f.shape
 
     # Generate data and add noise.

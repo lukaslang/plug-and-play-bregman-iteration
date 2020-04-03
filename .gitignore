@@ -6,3 +6,4 @@ data/cifar-10-batches-py
 legacy
 data/DICOM
 data/Phantom
+data/BSDS500

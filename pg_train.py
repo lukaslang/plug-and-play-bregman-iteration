@@ -18,68 +18,75 @@
 #    You should have received a copy of the GNU General Public License
 #    along with PNPBI. If not, see <http://www.gnu.org/licenses/>.
 """Trains a CNN image reconstruction network using the PG method."""
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from pnpbi.dncnn.data import NoisyBSDSDataset
+import torchvision
+from pnpbi.dncnn.data import NoisyCTDataset
 from pnpbi.dncnn import model
-from pnpbi.util.torch import functionals
-from pnpbi.util.torch import operators
+from pnpbi.util.torch import helper
 
 # Define data.
 image_dir = './data/phantom/images'
-image_size = (100, 100)
-sigma = 30
+image_size = (40, 40)
+
+# Set noise level.
+sigma = 0.05
 
 # Define path for model.
 model_path = './pg_phantom.pth'
 
+
+def imshow(img):
+    """Plot images."""
+    # Unnormalise for plotting.
+    # img = img / 2 + 0.5
+    npimg = img.numpy()
+    plt.imshow(np.transpose(npimg, (1, 2, 0)), cmap='gray')
+    plt.colorbar()
+
+
+# Set up operators, functional, and gradient.
+pb = helper.setup_reconstruction_problem(image_size)
+Kfun, Kadjfun, G, gradG, data_size = pb
+
 # Define training set.
-trainset = NoisyBSDSDataset(image_dir, mode='train',
-                            image_size=image_size, sigma=sigma)
-trainset = torch.utils.data.Subset(trainset, list(range(0, 40)))
+trainset = NoisyCTDataset(Kfun, image_dir, mode='train',
+                          image_size=image_size, sigma=sigma)
+trainset = torch.utils.data.Subset(trainset, list(range(0, 100)))
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=4,
                                           shuffle=True, num_workers=2)
 
 # Define test set.
-testset = NoisyBSDSDataset(image_dir, mode='test',
-                           image_size=image_size, sigma=sigma)
+testset = NoisyCTDataset(Kfun, image_dir, mode='test',
+                         image_size=image_size, sigma=sigma)
 testset = torch.utils.data.Subset(testset, list(range(0, 10)))
 testloader = torch.utils.data.DataLoader(testset, batch_size=4,
                                          shuffle=False, num_workers=2)
 
-
-# Define identity operator for denoising.
-def K(x: torch.Tensor):
-    """Identity operator."""
-    return x
-
-
-# Define adjoint.
-Kadj = K
-
-# Create function handles for use with torch.
-Kfun, Kadjfun = operators.create_op_functions(K, Kadj, image_size, image_size)
-
-# Create data fidelity and its gradient.
-G, gradG = functionals.OpSqNormDataTerm(Kfun, Kadjfun)
-
 # Create model and load if present.
 denoising_model = model.DnCNN(D=6, C=64)
-net = model.PG(denoising_model, image_size, gradG=gradG, tau=0.01, niter=5)
-# net.load_state_dict(torch.load(model_path))
-net.eval()
+# denoising_model = model.DUDnCNN(D=6, C=64)
+net = model.PG(denoising_model, image_size, gradG=gradG, tau=1e-5, niter=3)
+net.load_state_dict(torch.load(model_path))
+net.train()
 
 # Define optimisation problem.
 criterion = nn.MSELoss()
-# optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+# optimizer = optim.SGD(net.parameters(), lr=1e-3, momentum=0.05)
 optimizer = optim.Adam(net.parameters(), lr=1e-3)
 
-# Start training.
-num_epochs = 5
+# Define training parameters.
+num_epochs = 50
+print_every = 5
+train_losses, test_losses = [], []
+
+# Train model.
 for epoch in range(num_epochs):
     running_loss = 0.0
-    for i, data in enumerate(trainloader, 0):
+    for step, data in enumerate(trainloader, 0):
         inputs, labels = data
 
         # zero the parameter gradients
@@ -93,11 +100,45 @@ for epoch in range(num_epochs):
 
         # print statistics
         running_loss += loss.item()
-        if i % 10 == 9:    # print every 10 mini-batches
-            print('Learned tau is {0:0.3f}'.format(net.tau[0]))
-            print('[%d, %5d] loss: %.5f' %
-                  (epoch + 1, i + 1, running_loss / 10))
+        if step % print_every == 0:    # print every 10 mini-batches
+            test_loss = 0
+            net.eval()
+            with torch.no_grad():
+                for inputs, labels in testloader:
+                    outputs = net(inputs)
+                    batch_loss = criterion(outputs, labels)
+                    test_loss += batch_loss.item()
+
+            train_losses.append(running_loss / len(trainloader))
+            test_losses.append(test_loss / len(testloader))
+
+            # Print losses.
+            print(f"Epoch {epoch + 1}/{num_epochs} "
+                  f"Training loss: {running_loss / print_every:.5f} "
+                  f"Validation loss: {test_loss / len(testloader):.5f} ")
+            print(f"Learned tau is {net.tau:.3e}")
+
+            # Plot loss.
+            plt.figure()
+            plt.subplot(2, 1, 1)
+            plt.plot(train_losses, label='Training loss')
+            plt.plot(test_losses, label='Validation loss')
+            plt.legend(frameon=False)
+
+            # Plot first result.
+            with torch.no_grad():
+                inputs, labels = next(iter(testloader))
+                outputs = net(inputs)
+
+                plt.subplot(2, 1, 2)
+                imshow(torchvision.utils.make_grid(torch.cat((labels,
+                                                              outputs), 2),
+                                                   normalize=True))
+
+            plt.show()
+
             running_loss = 0.0
+            net.train()
 
 print('Finished Training')
 torch.save(net.state_dict(), model_path)

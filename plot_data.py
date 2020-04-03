@@ -22,48 +22,45 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torchvision
-from pnpbi.dncnn.data import NoisyBSDSDataset
-from pnpbi.util.torch import operators
+from pnpbi.dncnn.data import NoisyCTDataset
+from pnpbi.util.torch import helper
 
 # Define data.
-image_dir = './data/BSDS300/images'
-image_size = (100, 100)
-sigma = 30
+image_dir = './data/phantom/images'
+image_size = (40, 40)
+sigma = 0.05
 
-# Define path for model.
-model_path = './pg_BSDS300.pth'
+# Set up operators, functional, and gradient.
+pb = helper.setup_reconstruction_problem(image_size)
+Kfun, Kadjfun, G, gradG, data_size = pb
 
 # Define training set.
-trainset = NoisyBSDSDataset(image_dir, mode='train',
-                            image_size=image_size, sigma=sigma)
+trainset = NoisyCTDataset(Kfun, image_dir, mode='train',
+                          image_size=image_size, sigma=sigma)
 trainset = torch.utils.data.Subset(trainset, list(range(0, 40)))
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=4,
                                           shuffle=True, num_workers=2)
 
 # Define test set.
-testset = NoisyBSDSDataset(image_dir, mode='test',
-                           image_size=image_size, sigma=sigma)
+testset = NoisyCTDataset(Kfun, image_dir, mode='test',
+                         image_size=image_size, sigma=sigma)
 testset = torch.utils.data.Subset(testset, list(range(0, 10)))
 testloader = torch.utils.data.DataLoader(testset, batch_size=4,
                                          shuffle=False, num_workers=2)
 
 
-# Define identity operator for denoising.
-def K(x: torch.Tensor):
-    """Identity operator."""
-    return x
-
-
-# Define adjoint.
-Kadj = K
-
-# Create function handles for use with torch.
-operators.create_op_functions(K, Kadj, image_size, image_size)
-
-
 def imshow(img):
-    # Unnormalise for plotting.
-    img = img / 2 + 0.5
+    """De-normalise and plot image."""
+    # img = img / 2 + 0.5
+    npimg = img.numpy()
+    plt.imshow(np.transpose(npimg, (1, 2, 0)), cmap='gray')
+    plt.colorbar()
+    plt.show()
+
+
+def datashow(img):
+    """Plot image."""
+    # img = img / 2 + 0.5
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)), cmap='gray')
     plt.colorbar()
@@ -72,6 +69,7 @@ def imshow(img):
 
 for data in testloader:
     images, labels = data
-    imshow(torchvision.utils.make_grid(images))
-    imshow(torchvision.utils.make_grid(Kadj(images)))
-    imshow(torchvision.utils.make_grid(labels))
+    imshow(torchvision.utils.make_grid(images, normalize=True))
+    imshow(torchvision.utils.make_grid(Kadjfun(images), normalize=True))
+    imshow(torchvision.utils.make_grid(labels, normalize=True))
+    datashow(torchvision.utils.make_grid(Kfun(labels), normalize=True))
