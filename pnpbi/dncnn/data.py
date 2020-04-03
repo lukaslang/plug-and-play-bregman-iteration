@@ -77,14 +77,12 @@ class NoisyCTDataset(Dataset):
     def __getitem__(self, idx):
         img_path = os.path.join(self.images_dir, self.files[idx])
         clean = Image.open(img_path).convert('RGB')
-        # random crop
-        i = np.random.randint(clean.size[0] - self.image_size[0])
-        j = np.random.randint(clean.size[1] - self.image_size[1])
-
-        clean = clean.crop([i, j, i+self.image_size[0], j+self.image_size[1]])
 
         transform = transforms.Compose([
             transforms.Grayscale(),
+            transforms.RandomRotation(90),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomResizedCrop(self.image_size),
             # convert it to a tensor
             transforms.ToTensor(),
             # normalize it to the range [0, 1]

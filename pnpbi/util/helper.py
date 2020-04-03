@@ -23,13 +23,10 @@ from pnpbi.util import functionals
 from pnpbi.util import radon
 
 
-def setup_denoising_problem(f: np.array):
+def setup_denoising_problem(f: np.array, sigma: float):
     """Set up denoising problem."""
-    m, n = f.shape
-
     # Generate data and add noise.
-    sigma = 0.05
-    ydelta = f + sigma * np.random.randn(m, n)
+    ydelta = f + sigma**2 * f.var() * f.max() * np.random.randn(*f.shape)
 
     # Define data fidelity and its gradient.
     G, gradG = functionals.SqNormDataTerm(ydelta)
@@ -37,7 +34,7 @@ def setup_denoising_problem(f: np.array):
     return ydelta, G, gradG
 
 
-def setup_reconstruction_problem(f: np.array):
+def setup_reconstruction_problem(f: np.array, sigma: float):
     """Set up reconstruction problem using Radon transform."""
     m, n = f.shape
 
@@ -52,8 +49,7 @@ def setup_reconstruction_problem(f: np.array):
     y = K(f)
 
     # Add noise.
-    sigma = 0.05
-    ydelta = y + sigma * np.random.randn(*y.shape)
+    ydelta = y + sigma**2 * y.var() * y.max() * np.random.randn(*y.shape)
 
     # Define data fidelity and its gradient.
     G, gradG = functionals.OpSqNormDataTerm(K, Kadj, ydelta)

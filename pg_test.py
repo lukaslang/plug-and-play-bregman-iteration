@@ -28,7 +28,7 @@ from pnpbi.util.torch import helper
 
 # Define data.
 image_dir = './data/phantom/images'
-image_size = (40, 40)
+image_size = (50, 50)
 
 # Set noise level.
 sigma = 0.05
@@ -56,7 +56,7 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=4,
 
 # Create model and load if present.
 denoising_model = model.DnCNN(D=6, C=64)
-net = model.PG(denoising_model, image_size, gradG=gradG, tau=1e-5, niter=3)
+net = model.PG(denoising_model, image_size, gradG=gradG, tau=2e-5, niter=3)
 net.load_state_dict(torch.load(model_path))
 net.eval()
 

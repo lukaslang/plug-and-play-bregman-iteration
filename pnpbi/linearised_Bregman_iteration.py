@@ -37,18 +37,21 @@ def linBregmanIteration():
     m, n = f.shape
 
     # Set up reconstruction problem.
-    # ydelta, G, gradG = helper.setup_reconstruction_problem(f)
-    # tau = 2e-5
-    # alpha = 5
+    sigma = 0.01
+    ydelta, G, gradG = helper.setup_reconstruction_problem(f, sigma)
+    tau = 2e-5
+    alpha = 1e4
 
     # Set up denoising problem.
-    ydelta, G, gradG = helper.setup_denoising_problem(f)
-    tau = 1e-2
-    alpha = 5
+    # sigma = 0.5
+    # ydelta, G, gradG = helper.setup_denoising_problem(f, sigma)
+    # tau = 1e-2
+    # alpha = 5
 
     # Show image.
     plt.figure()
     plt.imshow(ydelta, cmap='gray')
+    plt.colorbar()
     plt.show()
 
     # Create derivative operators.
