@@ -30,13 +30,16 @@ from pnpbi.util.torch import helper
 
 # Define data.
 image_dir = './data/phantom/images'
-image_size = (50, 50)
+image_size = (100, 100)
 
 # Set noise level.
 sigma = 0.01
 
 # Define path for model.
 model_path = './pg_phantom.pth'
+
+# Set plotting during training.
+plot = False
 
 
 def imshow(img):
@@ -69,17 +72,17 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=4,
 # Create model and load if present.
 denoising_model = model.DnCNN(D=6, C=64)
 # denoising_model = model.DUDnCNN(D=6, C=64)
-net = model.PG(denoising_model, image_size, gradG=gradG, tau=2e-5, niter=3)
+net = model.PG(denoising_model, image_size, gradG=gradG, tau=2e-5, niter=5)
 # net.load_state_dict(torch.load(model_path))
 net.train()
 
 # Define optimisation problem.
 criterion = nn.MSELoss()
-# optimizer = optim.SGD(net.parameters(), lr=1e-3, momentum=0.05)
+# optimizer = optim.SGD(net.parameters(), lr=1e-3, momentum=0.9)
 optimizer = optim.Adam(net.parameters(), lr=1e-3)
 
 # Define training parameters.
-num_epochs = 50
+num_epochs = 200
 print_every = 5
 train_losses, test_losses = [], []
 
@@ -114,28 +117,29 @@ for epoch in range(num_epochs):
 
             # Print losses.
             print(f"Epoch {epoch + 1}/{num_epochs} "
-                  f"Training loss: {running_loss / print_every:.5f} "
-                  f"Validation loss: {test_loss / len(testloader):.5f} ")
+                  f"Training loss: {running_loss / print_every:.3e} "
+                  f"Validation loss: {test_loss / len(testloader):.3e} ")
             print(f"Learned tau is {net.tau:.3e}")
 
             # Plot loss.
-            plt.figure()
-            plt.subplot(2, 1, 1)
-            plt.plot(train_losses, label='Training loss')
-            plt.plot(test_losses, label='Validation loss')
-            plt.legend(frameon=False)
+            if plot:
+                plt.figure()
+                plt.subplot(2, 1, 1)
+                plt.plot(train_losses, label='Training loss')
+                plt.plot(test_losses, label='Validation loss')
+                plt.legend(frameon=False)
 
-            # Plot first result.
-            with torch.no_grad():
-                inputs, labels = next(iter(testloader))
-                outputs = net(inputs)
+                # Plot first result.
+                with torch.no_grad():
+                    inputs, labels = next(iter(testloader))
+                    outputs = net(inputs)
 
-                plt.subplot(2, 1, 2)
-                imshow(torchvision.utils.make_grid(torch.cat((labels,
-                                                              outputs), 2),
-                                                   normalize=True))
+                    plt.subplot(2, 1, 2)
+                    imshow(torchvision.utils.make_grid(torch.cat((labels,
+                                                                  outputs), 2),
+                                                       normalize=True))
 
-            plt.show()
+                plt.show()
 
             running_loss = 0.0
             net.train()
