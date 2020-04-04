@@ -3,6 +3,7 @@ channels:
   - pytorch
   - defaults
   - astra-toolbox
+  - conda-forge
 dependencies:
   - pillow=6.2.1
   - scipy
