@@ -76,7 +76,7 @@ class TestRadon(unittest.TestCase):
 
     def test_radon2d_plot(self):
 
-        img = Image.open('data/Phantom/images/test/phantom.png').convert('L')
+        img = Image.open('data/phantom.png').convert('L')
         img = np.array(img)
 
         # Set image size.
