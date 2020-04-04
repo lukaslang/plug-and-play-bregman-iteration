@@ -1,7 +1,7 @@
 name: pnpbi
 channels:
-  - pytorch
   - defaults
+  - pytorch
   - astra-toolbox
   - conda-forge
 dependencies:
