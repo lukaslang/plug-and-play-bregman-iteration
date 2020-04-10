@@ -22,7 +22,7 @@ import astra
 import numpy as np
 
 
-def radon2d(m: int, n: int, angles: np.array):
+def radon2d(m: int, n: int, angles: np.array, cuda=False):
     """Create operator for the 2D Radon transform.
 
     K takes an array of shape (m, n) and returns an array of shape
@@ -37,6 +37,7 @@ def radon2d(m: int, n: int, angles: np.array):
         n (int): Number of columns. n > 1.
         angles (np.array): An array specifying measurement angles in rad in the
         range [0, pi].
+        cuda (bool): Uses GPU is True.
 
     Return:
     ------
@@ -50,9 +51,12 @@ def radon2d(m: int, n: int, angles: np.array):
     proj_geom = astra.create_proj_geom('parallel',
                                        det_spacing, ndet, angles)
 
+    proj_type = 'cuda' if cuda else 'linear'
+    alg = 'BP_CUDA' if cuda else 'BP'
+
     def K(x):
         # Create sinogram.
-        proj_id = astra.create_projector('linear', proj_geom, vol_geom)
+        proj_id = astra.create_projector(proj_type, proj_geom, vol_geom)
         sino_id, sino = astra.create_sino(x, proj_id)
         astra.data2d.delete(sino_id)
         astra.projector.delete(proj_id)
@@ -65,7 +69,7 @@ def radon2d(m: int, n: int, angles: np.array):
         proj_id = astra.create_projector('linear', proj_geom, vol_geom)
 
         # Set up the parameters for the backpropagation reconstruction.
-        cfg = astra.astra_dict('BP')
+        cfg = astra.astra_dict(alg)
         cfg['ReconstructionDataId'] = rec_id
         cfg['ProjectionDataId'] = sino_id
         cfg['ProjectorId'] = proj_id

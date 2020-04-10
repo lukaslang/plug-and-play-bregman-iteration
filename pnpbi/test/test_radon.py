@@ -22,6 +22,7 @@ from pnpbi.util import radon
 from PIL import Image
 import unittest
 import matplotlib.pyplot as plt
+import torch
 
 
 class TestRadon(unittest.TestCase):
@@ -108,6 +109,60 @@ class TestRadon(unittest.TestCase):
         plt.imshow(f, cmap='gray')
         plt.colorbar()
         plt.show()
+
+    def test_radon2d_cuda(self):
+        # Set image size.
+        m, n = 39, 23
+
+        # Define angles.
+        angles = np.linspace(0, np.pi, 180, False)
+
+        # Check if GPU is available.
+        cuda = torch.cuda.is_available()
+
+        # Create operators.
+        K, Kadj, ndet = radon.radon2d(m, n, angles, cuda)
+
+        # Apply to dummy image.
+        f = K(np.ones((m, n)))
+        np.testing.assert_allclose(f.shape[0], angles.size)
+
+        # Apply to dummy data.
+        f = Kadj(np.ones_like(f))
+        np.testing.assert_allclose(f.shape, (m, n))
+
+    def test_radon2d_adjointness_cuda(self):
+        # Set image size.
+        m, n = 39, 23
+
+        # Define angles.
+        angles = np.linspace(0, np.pi, 180, False)
+
+        # Check if GPU is available.
+        cuda = torch.cuda.is_available()
+
+        # Create operators.
+        K, Kadj, ndet = radon.radon2d(m, n, angles, cuda)
+
+        # Apply to dummy image.
+        f = K(np.ones((m, n)))
+        np.testing.assert_allclose(f.shape[0], angles.size)
+
+        # Apply to dummy data.
+        f = Kadj(np.ones_like(f))
+        np.testing.assert_allclose(f.shape, (m, n))
+
+        # Create random matrix.
+        x = np.random.rand(m, n)
+        p, q = K(x).shape
+
+        # Create second random matrix.
+        y = np.random.rand(p, q)
+
+        # Check adjointness up to certain relative tolerance.
+        np.testing.assert_allclose(np.dot(K(x).flatten(), y.flatten()),
+                                   np.dot(x.flatten(), Kadj(y).flatten()),
+                                   1e-3)
 
 
 if __name__ == '__main__':
