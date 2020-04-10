@@ -35,7 +35,7 @@ def create_op_functions(K, Kadj, image_size, data_size, cuda=False):
         Kfun, Kadjfun: Generic function handles for use with torch functions.
     """
     # Check if GPU shall be used.
-    device = 'cuda' if cuda else None
+    device = 'cuda:0' if cuda else None
 
     # Create function for linear operator.
     Op = LinearOperator.apply
