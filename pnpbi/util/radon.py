@@ -66,7 +66,7 @@ def radon2d(m: int, n: int, angles: np.array, cuda=False):
         # Create objects for the reconstruction
         rec_id = astra.data2d.create('-vol', vol_geom)
         sino_id = astra.data2d.create('-sino', proj_geom, sino)
-        proj_id = astra.create_projector('linear', proj_geom, vol_geom)
+        proj_id = astra.create_projector(proj_type, proj_geom, vol_geom)
 
         # Set up the parameters for the backpropagation reconstruction.
         cfg = astra.astra_dict(alg)
