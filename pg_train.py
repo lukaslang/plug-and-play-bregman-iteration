@@ -47,24 +47,9 @@ parser.add_argument('--restore_file', default='checkpoint.pth.tar',
                     help="Optional, name of the file in --model_dir \
                     containing last checkpoint")
 
-# Define data.
-data_dir = './data/phantom/images'
-image_size = (40, 40)
-
-# Set noise level.
-sigma = 0.01
-
-# Define path for model.
-model_path = './pg_phantom.pth'
-
-# Set plotting during training.
-plot = True
-
 
 def imshow(img):
     """Plot images."""
-    # Unnormalise for plotting.
-    # img = img / 2 + 0.5
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)), cmap='gray')
     plt.colorbar()
@@ -231,12 +216,18 @@ if __name__ == '__main__':
     # Set up problem and load datasets.
     logging.info(f"Loading datasets from '{args.data_dir}'.")
 
+    # Define data.
+    image_size = (40, 40)
+
+    # Set noise level.
+    sigma = 0.05
+
     # Set up operators, functional, and gradient.
     pb = helper.setup_reconstruction_problem(image_size)
     Kfun, Kadjfun, G, gradG, data_size = pb
 
     # Define training set.
-    trainset = NoisyCTDataset(Kfun, data_dir, mode='train',
+    trainset = NoisyCTDataset(Kfun, args.data_dir, mode='train',
                               image_size=image_size, sigma=sigma)
     trainset = data.Subset(trainset, list(range(0, 40)))
     train_loader = data.DataLoader(trainset, batch_size=params.batch_size,
@@ -244,7 +235,7 @@ if __name__ == '__main__':
                                    num_workers=params.num_workers)
 
     # Define test set.
-    valset = NoisyCTDataset(Kfun, data_dir, mode='test',
+    valset = NoisyCTDataset(Kfun, args.data_dir, mode='test',
                             image_size=image_size, sigma=sigma)
     valset = data.Subset(valset, list(range(0, 10)))
     valid_loader = data.DataLoader(valset, batch_size=params.batch_size,

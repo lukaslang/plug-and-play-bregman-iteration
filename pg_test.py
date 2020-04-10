@@ -18,66 +18,113 @@
 #    You should have received a copy of the GNU General Public License
 #    along with PNPBI. If not, see <http://www.gnu.org/licenses/>.
 """Trains a CNN image reconstruction network using the PG method."""
+import argparse
+import logging
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torch.utils.data as data
 import torchvision
-from pnpbi.dncnn.data import NoisyCTDataset
-from pnpbi.dncnn import model
+
+from pnpbi.data import NoisyCTDataset
+from pnpbi.model import DnCNN, PG
 from pnpbi.util.torch import helper
+from pnpbi.util import utils
 
-# Define data.
-image_dir = './data/phantom/images'
-image_size = (50, 50)
 
-# Set noise level.
-sigma = 0.05
-
-# Define path for model.
-model_path = './pg_phantom.pth'
-
-# Set up operators, functional, and gradient.
-pb = helper.setup_reconstruction_problem(image_size)
-Kfun, Kadjfun, G, gradG, data_size = pb
-
-# Define training set.
-trainset = NoisyCTDataset(Kfun, image_dir, mode='train',
-                          image_size=image_size, sigma=sigma)
-trainset = torch.utils.data.Subset(trainset, list(range(0, 40)))
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=4,
-                                          shuffle=True, num_workers=2)
-
-# Define test set.
-testset = NoisyCTDataset(Kfun, image_dir, mode='test',
-                         image_size=image_size, sigma=sigma)
-testset = torch.utils.data.Subset(testset, list(range(0, 10)))
-testloader = torch.utils.data.DataLoader(testset, batch_size=4,
-                                         shuffle=False, num_workers=2)
-
-# Create model and load if present.
-denoising_model = model.DnCNN(D=6, C=64)
-net = model.PG(denoising_model, image_size, gradG=gradG, tau=2e-5, niter=3)
-net.load_state_dict(torch.load(model_path))
-net.eval()
+# Specify default arguments.
+parser = argparse.ArgumentParser()
+parser.add_argument('--data_dir', default='data/phantom/images',
+                    help="Directory containing the dataset")
+parser.add_argument('--model_dir', default='experiments',
+                    help="Directory containing params.json")
+parser.add_argument('--restore_file', default='checkpoint.pth.tar',
+                    help="Optional, name of the file in --model_dir \
+                    containing last checkpoint")
 
 
 def imshow(img):
     """Plot images."""
-    # Unnormalise for plotting.
-    # img = img / 2 + 0.5
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)), cmap='gray')
     plt.colorbar()
     plt.show()
 
 
-# Plot results.
-with torch.no_grad():
-    for data in testloader:
-        images, labels = data
-        outputs = net(images)
+if __name__ == '__main__':
 
-        imshow(torchvision.utils.make_grid(images, normalize=True))
-        imshow(torchvision.utils.make_grid(labels, normalize=True))
-        imshow(torchvision.utils.make_grid(Kadjfun(images), normalize=True))
-        imshow(torchvision.utils.make_grid(outputs, normalize=True))
+    # Load parameters from JSON file.
+    args = parser.parse_args()
+    json_path = os.path.join(args.model_dir, 'params.json')
+    assert os.path.isfile(
+        json_path), "No json configuration file found at {}".format(json_path)
+    params = utils.Params(json_path)
+
+    # Init random seed for reproducible experiments.
+    torch.manual_seed(123)
+
+    # Init logger
+    utils.set_logger(os.path.join(args.model_dir, 'train.log'))
+
+    # Set up problem and load datasets.
+    logging.info(f"Loading datasets from '{args.data_dir}'.")
+
+    # Define data.
+    image_size = (40, 40)
+
+    # Set noise level.
+    sigma = 0.05
+
+    # Set up operators, functional, and gradient.
+    pb = helper.setup_reconstruction_problem(image_size)
+    Kfun, Kadjfun, G, gradG, data_size = pb
+
+    # Define test set.
+    valset = NoisyCTDataset(Kfun, args.data_dir, mode='test',
+                            image_size=image_size, sigma=sigma)
+    valset = data.Subset(valset, list(range(0, 4)))
+    valid_loader = data.DataLoader(valset, batch_size=params.batch_size,
+                                   shuffle=False,
+                                   num_workers=params.num_workers)
+
+    # Create model and load if present.
+    denoising_model = DnCNN(D=6, C=64)
+    model = PG(denoising_model, image_size, gradG=gradG, tau=2e-5, niter=5)
+
+    # Load model from file.
+    if args.restore_file is not None:
+        restore_path = os.path.join(args.model_dir, args.restore_file)
+        logging.info(f"Loading checkpoint from '{restore_path}'.")
+        utils.load_checkpoint(restore_path, model)
+
+    # Create Landweber iteration.
+    class Identity(torch.nn.Module):
+        """Identity operator."""
+
+        def forward(self, input):
+            """Return input."""
+            return input
+    lw_model = PG(Identity(), image_size, gradG=gradG, tau=2e-5, niter=100)
+
+    # Set models to evaluate mode.
+    model.eval()
+    lw_model.eval()
+
+    # Plot results.
+    with torch.no_grad():
+        for inputs, labels in valid_loader:
+            # Compute reconstruction.
+            outputs = model(inputs)
+
+            # Display results.
+            disp_images = torch.cat((labels, outputs), 2)
+            imshow(torchvision.utils.make_grid(disp_images, normalize=True))
+
+            # Compute Landweber reconstruction.
+            lw_outputs = lw_model(inputs)
+
+            # Display results.
+            disp_images = torch.cat((labels, lw_outputs), 2)
+            imshow(torchvision.utils.make_grid(disp_images, normalize=True))

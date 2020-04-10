@@ -27,7 +27,7 @@ conda env create -f environment.yml
 b) Manually create the environment:
 
 ```bash
-conda create -n pnpbi -c astra-toolbox python=3.6 matplotlib astra-toolbox scipy pillow=6.2.1
+conda create -n pnpbi -c astra-toolbox python=3.6 matplotlib astra-toolbox=1.8.3 scipy pillow=6.2.1 tqdm
 ```
 
 Then, activate the environment:
