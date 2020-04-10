@@ -18,19 +18,38 @@
 #    You should have received a copy of the GNU General Public License
 #    along with PNPBI. If not, see <http://www.gnu.org/licenses/>.
 """Trains a CNN image reconstruction network using the PG method."""
+import argparse
+import logging
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.utils.data as data
 import torchvision
-from pnpbi.dncnn.data import NoisyCTDataset
-from pnpbi.dncnn import model
+from tqdm import tqdm
+
+from pnpbi.data import NoisyCTDataset
+from pnpbi.model import DnCNN, PG
 from pnpbi.util.torch import helper
+from pnpbi.util import utils
+
+
+# Specify default arguments.
+parser = argparse.ArgumentParser()
+parser.add_argument('--data_dir', default='data/phantom/images',
+                    help="Directory containing the dataset")
+parser.add_argument('--model_dir', default='experiments',
+                    help="Directory containing params.json")
+parser.add_argument('--restore_file', default='checkpoint.pth.tar',
+                    help="Optional, name of the file in --model_dir \
+                    containing last checkpoint")
 
 # Define data.
-image_dir = './data/phantom/images'
-image_size = (100, 100)
+data_dir = './data/phantom/images'
+image_size = (40, 40)
 
 # Set noise level.
 sigma = 0.01
@@ -39,7 +58,7 @@ sigma = 0.01
 model_path = './pg_phantom.pth'
 
 # Set plotting during training.
-plot = False
+plot = True
 
 
 def imshow(img):
@@ -51,98 +70,201 @@ def imshow(img):
     plt.colorbar()
 
 
-# Set up operators, functional, and gradient.
-pb = helper.setup_reconstruction_problem(image_size)
-Kfun, Kadjfun, G, gradG, data_size = pb
+def train(model, optimizer, loss_fn, loader, params) -> float:
+    """Train model for one epoch.
 
-# Define training set.
-trainset = NoisyCTDataset(Kfun, image_dir, mode='train',
-                          image_size=image_size, sigma=sigma)
-trainset = torch.utils.data.Subset(trainset, list(range(0, 100)))
-trainloader = torch.utils.data.DataLoader(trainset, batch_size=4,
-                                          shuffle=True, num_workers=2)
+    Args:
+    ----
+        model (torch.nn.Module): The model.
+        optimizer (torch.optim.Optimizer): The optimizer.
+        loss_fn: A loss function.
+        loader (torch.utils.data.DataLoader): The dataloader to use.
+        params (pnpbi.util.utils.Params): Training parameters.
 
-# Define test set.
-testset = NoisyCTDataset(Kfun, image_dir, mode='test',
-                         image_size=image_size, sigma=sigma)
-testset = torch.utils.data.Subset(testset, list(range(0, 10)))
-testloader = torch.utils.data.DataLoader(testset, batch_size=4,
-                                         shuffle=False, num_workers=2)
+    Return:
+    ------
+        loss (float): The training loss.
+    """
+    # Set model to training mode.
+    model.train()
 
-# Create model and load if present.
-denoising_model = model.DnCNN(D=6, C=64)
-# denoising_model = model.DUDnCNN(D=6, C=64)
-net = model.PG(denoising_model, image_size, gradG=gradG, tau=2e-5, niter=5)
-# net.load_state_dict(torch.load(model_path))
-net.train()
+    # Train model.
+    loss_avg = utils.RunningAvg()
 
-# Define optimisation problem.
-criterion = nn.MSELoss()
-# optimizer = optim.SGD(net.parameters(), lr=1e-3, momentum=0.9)
-optimizer = optim.Adam(net.parameters(), lr=1e-3)
+    with tqdm(total=len(loader)) as t:
+        for step, (inputs, labels) in enumerate(loader):
 
-# Define training parameters.
-num_epochs = 200
-print_every = 5
-train_losses, test_losses = [], []
+            # Compute forward pass and evaluate loss.
+            outputs = model(inputs)
+            loss = loss_fn(outputs, labels)
 
-# Train model.
-for epoch in range(num_epochs):
-    running_loss = 0.0
-    for step, data in enumerate(trainloader, 0):
-        inputs, labels = data
+            # Clear previously computed gradients.
+            optimizer.zero_grad()
 
-        # zero the parameter gradients
-        optimizer.zero_grad()
+            # Compute gradients and perform update step.
+            loss.backward()
+            optimizer.step()
 
-        # forward + backward + optimize
-        outputs = net(inputs)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
+            # Update average loss.
+            loss_avg.add(loss.item())
 
-        # print statistics
-        running_loss += loss.item()
-        if step % print_every == 0:    # print every 10 mini-batches
-            test_loss = 0
-            net.eval()
+            # Update progress.
+            t.set_postfix(loss='{:.3e}'.format(loss_avg()))
+            t.update()
+
+    # Return loss after current epoch.
+    return loss_avg()
+
+
+def evaluate(model, loss_fn, loader, params) -> float:
+    """Evaluate model.
+
+    Args:
+    ----
+        model (torch.nn.Module): The model.
+        loss_fn: A loss function.
+        loader (torch.utils.data.DataLoader): The dataloader to use.
+        params (pnpbi.util.utils.Params): Training parameters.
+
+    Return:
+    ------
+        loss (float): The value of the evaluated loss function.
+    """
+    # Set model to evaluate mode.
+    model.eval()
+
+    # Compute validation loss.
+    loss_avg = utils.RunningAvg()
+    with torch.no_grad():
+        for inputs, labels in loader:
+            outputs = model(inputs)
+            batch_loss = loss_fn(outputs, labels)
+            loss_avg.add(batch_loss.item())
+
+    return loss_avg()
+
+
+def train_and_evaluate(model, optimizer, train_loader, valid_loader,
+                       loss_fn, params, model_dir, restore_file=None):
+    """Train model and evaluate after each epoch.
+
+    Args:
+    ----
+        model (torch.nn.Module): Model.
+        optimizer (torch.optim.Optimizer): Optimizer.
+        train_loader (torch.utils.data.DataLoader): Training data.
+        valid_loader (torch.utils.data.DataLoader): Validation data.
+        loss_fn: A loss function.
+        params (pnpbi.util.utils.Params): Training parameters.
+        model_dir (str): Directory where checkpoint is found/created.
+        restore_file (str): Filename of checkpoint (e.g. xyz.pth.tar).
+    """
+    # Number of already finished epochs (relevant if checkpoint is loaded).
+    fin_epochs = 0
+
+    # Load parameters from file.
+    if restore_file is not None:
+        restore_path = os.path.join(model_dir, restore_file)
+        logging.info(f"Loading checkpoint from '{restore_path}'.")
+        fin_epochs = utils.load_checkpoint(restore_path, model, optimizer)
+
+    # Init lists to store losses during epochs.
+    train_loss, val_loss = [], []
+
+    for epoch in range(fin_epochs, params.num_epochs):
+        logging.info(f"Epoch {epoch + 1}/{params.num_epochs}")
+
+        # Train one epoch (one full pass over training set)
+        loss = train(model, optimizer, loss_fn, train_loader, params)
+        train_loss.append(loss)
+
+        # Evaluate.
+        loss = evaluate(model, loss_fn, valid_loader, params)
+        val_loss.append(loss)
+
+        # Save/overwrite checkpoint.
+        utils.save_checkpoint({'epoch': epoch + 1,
+                               'state_dict': model.state_dict(),
+                               'optimizer_dict': optimizer.state_dict()},
+                              model_dir)
+
+        # Log losses and tau.
+        msg = f"Training loss: {train_loss[-1]:.3e}, " \
+            f"Validation loss: {val_loss[-1]:.3e}, tau={model.tau:.3e}"
+        logging.info(msg)
+
+        # Plot training and validation losses.
+        if params.plot:
+            plt.figure()
+            plt.subplot(2, 1, 1)
+            plt.plot(train_loss, '-', label='Training loss')
+            plt.plot(val_loss, '--', label='Validation loss')
+            plt.legend(frameon=False)
+
+            # Plot first result.
             with torch.no_grad():
-                for inputs, labels in testloader:
-                    outputs = net(inputs)
-                    batch_loss = criterion(outputs, labels)
-                    test_loss += batch_loss.item()
+                inputs, labels = next(iter(valid_loader))
+                outputs = model(inputs)
 
-            train_losses.append(running_loss / len(trainloader))
-            test_losses.append(test_loss / len(testloader))
+                plt.subplot(2, 1, 2)
+                disp_images = torch.cat((labels, outputs), 2)
+                imshow(torchvision.utils.make_grid(disp_images,
+                                                   normalize=True))
+            plt.show()
 
-            # Print losses.
-            print(f"Epoch {epoch + 1}/{num_epochs} "
-                  f"Training loss: {running_loss / print_every:.3e} "
-                  f"Validation loss: {test_loss / len(testloader):.3e} ")
-            print(f"Learned tau is {net.tau:.3e}")
 
-            # Plot loss.
-            if plot:
-                plt.figure()
-                plt.subplot(2, 1, 1)
-                plt.plot(train_losses, label='Training loss')
-                plt.plot(test_losses, label='Validation loss')
-                plt.legend(frameon=False)
+if __name__ == '__main__':
 
-                # Plot first result.
-                with torch.no_grad():
-                    inputs, labels = next(iter(testloader))
-                    outputs = net(inputs)
+    # Load parameters from JSON file.
+    args = parser.parse_args()
+    json_path = os.path.join(args.model_dir, 'params.json')
+    assert os.path.isfile(
+        json_path), "No json configuration file found at {}".format(json_path)
+    params = utils.Params(json_path)
 
-                    plt.subplot(2, 1, 2)
-                    imshow(torchvision.utils.make_grid(torch.cat((labels,
-                                                                  outputs), 2),
-                                                       normalize=True))
+    # Init random seed for reproducible experiments.
+    torch.manual_seed(123)
 
-                plt.show()
+    # Init logger
+    utils.set_logger(os.path.join(args.model_dir, 'train.log'))
 
-            running_loss = 0.0
-            net.train()
+    # Set up problem and load datasets.
+    logging.info(f"Loading datasets from '{args.data_dir}'.")
 
-print('Finished Training')
-torch.save(net.state_dict(), model_path)
+    # Set up operators, functional, and gradient.
+    pb = helper.setup_reconstruction_problem(image_size)
+    Kfun, Kadjfun, G, gradG, data_size = pb
+
+    # Define training set.
+    trainset = NoisyCTDataset(Kfun, data_dir, mode='train',
+                              image_size=image_size, sigma=sigma)
+    trainset = data.Subset(trainset, list(range(0, 40)))
+    train_loader = data.DataLoader(trainset, batch_size=params.batch_size,
+                                   shuffle=True,
+                                   num_workers=params.num_workers)
+
+    # Define test set.
+    valset = NoisyCTDataset(Kfun, data_dir, mode='test',
+                            image_size=image_size, sigma=sigma)
+    valset = data.Subset(valset, list(range(0, 10)))
+    valid_loader = data.DataLoader(valset, batch_size=params.batch_size,
+                                   shuffle=False,
+                                   num_workers=params.num_workers)
+
+    # Create model and load if present.
+    denoising_model = DnCNN(D=6, C=64)
+    model = PG(denoising_model, image_size, gradG=gradG, tau=2e-5, niter=5)
+
+    # Define optimisation problem.
+    loss_fn = nn.MSELoss()
+    # optimizer = optim.SGD(model.parameters(), lr=1e-3, momentum=0.9)
+    optimizer = optim.Adam(model.parameters(), lr=params.learning_rate)
+
+    logging.info(f"Starting training for {params.num_epochs} epoch(s).")
+    logging.info(f"Parameters: {params}.")
+
+    train_and_evaluate(model, optimizer,
+                       train_loader, valid_loader, loss_fn, params,
+                       args.model_dir, args.restore_file)
+
+    logging.info(f"Training for {params.num_epochs} epoch(s) completed.")

@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torchvision
-from pnpbi.dncnn.data import NoisyCTDataset
+from pnpbi.data import NoisyCTDataset
 from pnpbi.util.torch import helper
 
 # Define data.

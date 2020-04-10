@@ -27,7 +27,7 @@ conda env create -f environment.yml
 b) Manually create the environment:
 
 ```bash
-conda create -n pnpbi -c astra-toolbox python=3.6 matplotlib astra-toolbox scipy pillow
+conda create -n pnpbi -c astra-toolbox python=3.6 matplotlib astra-toolbox scipy pillow=6.2.1
 ```
 
 Then, activate the environment:
@@ -36,10 +36,16 @@ Then, activate the environment:
 conda activate pnpbi
 ```
 
-Optional: install PyTorch:
+Install PyTorch and torchvision:
 
 ```bash
-conda install -c pytorch pytorch
+conda install -c pytorch pytorch=1.3.1 torchvision=0.4.2
+```
+
+Install pydicom:
+
+```bash
+conda install -c conda-forge pydicom
 ```
 
 In order to run/edit the scripts using an IDE, install e.g. Spyder:

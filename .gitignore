@@ -7,3 +7,4 @@ legacy
 data/DICOM
 data/Phantom
 data/BSDS500
+*.log
