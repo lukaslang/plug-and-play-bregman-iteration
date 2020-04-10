@@ -78,6 +78,10 @@ def train(model, optimizer, loss_fn, loader, params) -> float:
 
     with tqdm(total=len(loader)) as t:
         for step, (inputs, labels) in enumerate(loader):
+            # Move to GPU if available.
+            if params.cuda:
+                inputs = inputs.cuda(non_blocking=True)
+                labels = labels.cuda(non_blocking=True)
 
             # Compute forward pass and evaluate loss.
             outputs = model(inputs)
@@ -122,6 +126,11 @@ def evaluate(model, loss_fn, loader, params) -> float:
     loss_avg = utils.RunningAvg()
     with torch.no_grad():
         for inputs, labels in loader:
+            # Move to GPU if available.
+            if params.cuda:
+                inputs = inputs.cuda(non_blocking=True)
+                labels = labels.cuda(non_blocking=True)
+
             outputs = model(inputs)
             batch_loss = loss_fn(outputs, labels)
             loss_avg.add(batch_loss.item())
@@ -207,8 +216,12 @@ if __name__ == '__main__':
         json_path), "No json configuration file found at {}".format(json_path)
     params = utils.Params(json_path)
 
+    # Check if GPU is available.
+    params.cuda = torch.cuda.is_available()
+
     # Init random seed for reproducible experiments.
     torch.manual_seed(123)
+    torch.cuda.manual_seed(123)
 
     # Init logger
     utils.set_logger(os.path.join(args.model_dir, 'train.log'))
@@ -231,7 +244,7 @@ if __name__ == '__main__':
                               image_size=image_size, sigma=sigma)
     trainset = data.Subset(trainset, list(range(0, 40)))
     train_loader = data.DataLoader(trainset, batch_size=params.batch_size,
-                                   shuffle=True,
+                                   shuffle=True, pin_memory=params.cuda,
                                    num_workers=params.num_workers)
 
     # Define test set.
@@ -239,12 +252,15 @@ if __name__ == '__main__':
                             image_size=image_size, sigma=sigma)
     valset = data.Subset(valset, list(range(0, 10)))
     valid_loader = data.DataLoader(valset, batch_size=params.batch_size,
-                                   shuffle=False,
+                                   shuffle=False, pin_memory=params.cuda,
                                    num_workers=params.num_workers)
 
     # Create model and load if present.
     denoising_model = DnCNN(D=6, C=64)
-    model = PG(denoising_model, image_size, gradG=gradG, tau=2e-5, niter=5)
+
+    model = PG(denoising_model, image_size, gradG=gradG,
+               tau=2e-5, niter=5).cuda() if params.cuda \
+        else PG(denoising_model, image_size, gradG=gradG, tau=2e-5, niter=5)
 
     # Define optimisation problem.
     loss_fn = nn.MSELoss()
