@@ -55,7 +55,7 @@ def setup_reconstruction_problem(image_size: tuple, cuda=False):
 
     # Create function handles for use with torch.
     Kfun, Kadjfun = operators.create_op_functions(K, Kadj,
-                                                  image_size, data_size)
+                                                  image_size, data_size, cuda)
 
     # Create data fidelity and its gradient.
     G, gradG = functionals.OpSqNormDataTerm(Kfun, Kadjfun)

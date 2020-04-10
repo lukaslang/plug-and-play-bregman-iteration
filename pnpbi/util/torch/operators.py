@@ -21,7 +21,7 @@
 import torch
 
 
-def create_op_functions(K, Kadj, image_size, data_size):
+def create_op_functions(K, Kadj, image_size, data_size, cuda=False):
     """Create operater functions for use with torch.
 
     Args:
@@ -34,13 +34,16 @@ def create_op_functions(K, Kadj, image_size, data_size):
     ------
         Kfun, Kadjfun: Generic function handles for use with torch functions.
     """
+    # Check if GPU shall be used.
+    device = 'cuda' if cuda else None
+
     # Create function for linear operator.
     Op = LinearOperator.apply
 
     # Create torch function that applies operator.
     def Kfun(x):
         nimg = x.shape[0]
-        y = torch.ones((nimg, 1, *data_size))
+        y = torch.ones((nimg, 1, *data_size), device=device)
         for k in range(nimg):
             y[k][0] = Op(x[k][0], K, Kadj)
         return y
@@ -48,7 +51,7 @@ def create_op_functions(K, Kadj, image_size, data_size):
     # Create torch function that applies adjoint operator.
     def Kadjfun(x):
         nimg = x.shape[0]
-        y = torch.ones((nimg, 1, *image_size))
+        y = torch.ones((nimg, 1, *image_size), device=device)
         for k in range(nimg):
             y[k][0] = Op(x[k][0], Kadj, K)
         return y
