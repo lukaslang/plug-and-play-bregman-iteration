@@ -19,6 +19,7 @@
 #    along with PNPBI. If not, see <http://www.gnu.org/licenses/>.
 from pnpbi.util import radon
 from pnpbi.util.torch.operators import LinearOperator
+from pnpbi.util.torch import operators
 import scipy.sparse as sparse
 import numpy as np
 import torch
@@ -118,7 +119,37 @@ class TestOperator(unittest.TestCase):
         x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
         tag.gradcheck(lambda t: Op(t, K, Kadj), x)
 
-    def test_LinearOperator_radon(self):
+    def test_create_op_functions_cuda(self):
+        # Define image size.
+        image_size = (31, 23)
+
+        # Define angles.
+        nangles = 180
+        angles = np.linspace(0, np.pi, nangles, False)
+
+        # Check if GPU is available.
+        cuda = torch.cuda.is_available()
+
+        # Define Radon transform and adjoint.
+        K, Kadj, ndet = radon.radon2d(*image_size, angles, cuda)
+        data_size = (nangles, ndet)
+
+        # Create function handles for use with torch.
+        Kfun, Kadjfun = operators.create_op_functions(K, Kadj, image_size,
+                                                      data_size, cuda)
+
+        # Create random matrix.
+        x = torch.randn(1, 1, *image_size)
+
+        # Create second random matrix.
+        y = torch.randn(1, 1, *data_size)
+
+        # Check adjointness up to certain relative tolerance.
+        ip1 = torch.dot(Kfun(x).flatten(), y.flatten())
+        ip2 = torch.dot(x.flatten(), Kadjfun(y).flatten())
+        torch.allclose(ip1, ip2)
+
+    def test_LinearOperator_radon_cuda(self):
         # Set image size.
         m, n = 5, 4
 
