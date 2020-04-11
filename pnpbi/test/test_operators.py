@@ -129,6 +129,7 @@ class TestOperator(unittest.TestCase):
 
         # Check if GPU is available.
         cuda = torch.cuda.is_available()
+        device = torch.device('cuda') if cuda else 'cpu'
 
         # Define Radon transform and adjoint.
         K, Kadj, ndet = radon.radon2d(*image_size, angles, cuda)
@@ -139,10 +140,10 @@ class TestOperator(unittest.TestCase):
                                                       data_size, cuda)
 
         # Create random matrix.
-        x = torch.randn(1, 1, *image_size)
+        x = torch.randn(1, 1, *image_size).to(device)
 
         # Create second random matrix.
-        y = torch.randn(1, 1, *data_size)
+        y = torch.randn(1, 1, *data_size).to(device)
 
         # Check adjointness up to certain relative tolerance.
         ip1 = torch.dot(Kfun(x).flatten(), y.flatten())
