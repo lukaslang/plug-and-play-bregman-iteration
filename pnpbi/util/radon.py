@@ -37,7 +37,7 @@ def radon2d(m: int, n: int, angles: np.array, cuda=False):
         n (int): Number of columns. n > 1.
         angles (np.array): An array specifying measurement angles in rad in the
         range [0, pi].
-        cuda (bool): Uses GPU is True.
+        cuda (bool): Uses GPU (default is device 0) if True.
 
     Return:
     ------

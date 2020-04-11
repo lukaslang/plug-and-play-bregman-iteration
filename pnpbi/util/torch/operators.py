@@ -44,7 +44,7 @@ def create_op_functions(K, Kadj, image_size, data_size, cuda=False):
     # Create torch function that applies operator.
     def Kfun(x):
         nimg = x.shape[0]
-        y = torch.ones((nimg, 1, *data_size)).to(device)
+        y = torch.ones((nimg, 1, *data_size), device=device)
         for k in range(nimg):
             y[k][0] = Op(x[k][0], K, Kadj)
         return y
@@ -52,7 +52,7 @@ def create_op_functions(K, Kadj, image_size, data_size, cuda=False):
     # Create torch function that applies adjoint operator.
     def Kadjfun(x):
         nimg = x.shape[0]
-        y = torch.ones((nimg, 1, *image_size)).to(device)
+        y = torch.ones((nimg, 1, *image_size), device=device)
         for k in range(nimg):
             y[k][0] = Op(x[k][0], Kadj, K)
         return y
