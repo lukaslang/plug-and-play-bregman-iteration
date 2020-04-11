@@ -238,7 +238,7 @@ if __name__ == '__main__':
     sigma = 0.05
 
     # Set up operators, functional, and gradient.
-    pb = helper.setup_reconstruction_problem(image_size, device)
+    pb = helper.setup_reconstruction_problem(image_size, torch.device('cpu'))
     Kfun, Kadjfun, G, gradG, data_size = pb
 
     # Define training set.
@@ -258,6 +258,10 @@ if __name__ == '__main__':
                                    shuffle=False,
                                    pin_memory=torch.cuda.is_available(),
                                    num_workers=params.num_workers)
+
+    # Set up operators, functional, and gradient.
+    pb = helper.setup_reconstruction_problem(image_size, device)
+    Kfun, Kadjfun, G, gradG, data_size = pb
 
     # Create model and push to GPU is available.
     denoising_model = DnCNN(D=6, C=64).to(device)
