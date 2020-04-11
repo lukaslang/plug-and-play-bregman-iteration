@@ -52,7 +52,7 @@ class PG(nn.Module):
         self.model = model
 
         # Device settings.
-        self.cuda = False
+        self.use_cuda = False
         self.device = 'cpu'
 
     def forward(self, fdelta):
@@ -92,7 +92,7 @@ class PG(nn.Module):
 
     def cuda(self) -> nn.Module:
         """Move to GPU."""
-        self.cuda = True
+        self.use_cuda = True
         self.device = 'cuda'
         self.model = self.model.cuda(device=self.device)
         return self
