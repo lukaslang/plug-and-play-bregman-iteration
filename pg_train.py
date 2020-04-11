@@ -236,7 +236,7 @@ if __name__ == '__main__':
     sigma = 0.05
 
     # Set up operators, functional, and gradient.
-    pb = helper.setup_reconstruction_problem(image_size, params.cuda)
+    pb = helper.setup_reconstruction_problem(image_size)
     Kfun, Kadjfun, G, gradG, data_size = pb
 
     # Define training set.
