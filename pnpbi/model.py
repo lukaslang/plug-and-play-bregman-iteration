@@ -51,6 +51,10 @@ class PG(nn.Module):
         # Define denoising model.
         self.model = model
 
+        # Device settings.
+        self.cuda = False
+        self.device = 'cpu'
+
     def forward(self, fdelta):
         """Compute the forward pass for given put data.
 
@@ -63,7 +67,8 @@ class PG(nn.Module):
             x (Tensor): The reconstructed data.
         """
         # Initialise data.
-        x = torch.zeros(fdelta.shape[0], 1, *self.image_size)
+        x = torch.zeros(fdelta.shape[0], 1, *self.image_size,
+                        device=self.device)
         y = - self.tau * self.gradG(x, fdelta)
 
         # Run Bregman iteration.
@@ -84,6 +89,13 @@ class PG(nn.Module):
     def train(self):
         """Set model to training mode."""
         self.model.train()
+
+    def cuda(self) -> nn.Module:
+        """Move to GPU."""
+        self.cuda = True
+        self.device = 'cuda'
+        self.model = self.model.cuda(device=self.device)
+        return self
 
 
 class DnCNN(nn.Module):
