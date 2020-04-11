@@ -199,6 +199,12 @@ def train_and_evaluate(model, optimizer, device, train_loader, valid_loader,
             # Plot first result.
             with torch.no_grad():
                 inputs, labels = next(iter(valid_loader))
+
+                # Move to GPU if available.
+                inputs = inputs.to(device, non_blocking=True)
+                labels = labels.to(device, non_blocking=True)
+
+                # Compute reconstruction.
                 outputs = model(inputs)
 
                 plt.subplot(2, 1, 2)
@@ -232,7 +238,7 @@ if __name__ == '__main__':
     logging.info(f"Loading datasets from '{args.data_dir}'.")
 
     # Define data.
-    image_size = (40, 40)
+    image_size = (100, 100)
 
     # Set noise level.
     sigma = 0.05
@@ -244,7 +250,7 @@ if __name__ == '__main__':
     # Define training set.
     trainset = NoisyCTDataset(Kfun, args.data_dir, mode='train',
                               image_size=image_size, sigma=sigma)
-    trainset = data.Subset(trainset, list(range(0, 40)))
+    trainset = data.Subset(trainset, list(range(0, 100)))
     train_loader = data.DataLoader(trainset, batch_size=params.batch_size,
                                    shuffle=True,
                                    pin_memory=torch.cuda.is_available(),

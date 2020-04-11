@@ -1,1 +1,1 @@
-{    "learning_rate": 1e-3,    "batch_size": 4,    "num_epochs": 10,    "num_workers": 2,    "print_every_steps": 5,    "plot": true}
+{    "learning_rate": 1e-3,    "batch_size": 10,    "num_epochs": 100,    "num_workers": 2,    "print_every_steps": 10,    "plot": false}
