@@ -62,8 +62,13 @@ if __name__ == '__main__':
         json_path), "No json configuration file found at {}".format(json_path)
     params = utils.Params(json_path)
 
+    # Check and use GPU if available.
+    cuda = torch.cuda.is_available()
+    device = torch.device('cuda:0' if cuda else 'cpu')
+
     # Init random seed for reproducible experiments.
     torch.manual_seed(123)
+    torch.cuda.manual_seed(123)
 
     # Init logger
     utils.set_logger(os.path.join(args.model_dir, 'train.log'))
@@ -78,7 +83,7 @@ if __name__ == '__main__':
     sigma = 0.05
 
     # Set up operators, functional, and gradient.
-    pb = helper.setup_reconstruction_problem(image_size)
+    pb = helper.setup_reconstruction_problem(image_size, device)
     Kfun, Kadjfun, G, gradG, data_size = pb
 
     # Define test set.
@@ -89,9 +94,10 @@ if __name__ == '__main__':
                                    shuffle=False,
                                    num_workers=params.num_workers)
 
-    # Create model and load if present.
-    denoising_model = DnCNN(D=6, C=64)
-    model = PG(denoising_model, image_size, gradG=gradG, tau=2e-5, niter=5)
+    # Create model and push to GPU is available.
+    denoising_model = DnCNN(D=6, C=64).to(device)
+    model = PG(denoising_model, image_size, gradG=gradG,
+               tau=2e-5, niter=5).to(device)
 
     # Load model from file.
     if args.restore_file is not None:

@@ -55,7 +55,7 @@ def imshow(img):
     plt.colorbar()
 
 
-def train(model, optimizer, loss_fn, loader, params) -> float:
+def train(model, optimizer, loss_fn, loader, params, device) -> float:
     """Train model for one epoch.
 
     Args:
@@ -65,6 +65,7 @@ def train(model, optimizer, loss_fn, loader, params) -> float:
         loss_fn: A loss function.
         loader (torch.utils.data.DataLoader): The dataloader to use.
         params (pnpbi.util.utils.Params): Training parameters.
+        device (torch.device): The device to use.
 
     Return:
     ------
@@ -79,9 +80,8 @@ def train(model, optimizer, loss_fn, loader, params) -> float:
     with tqdm(total=len(loader)) as t:
         for step, (inputs, labels) in enumerate(loader):
             # Move to GPU if available.
-            if params.cuda:
-                inputs = inputs.cuda(non_blocking=True)
-                labels = labels.cuda(non_blocking=True)
+            inputs = inputs.to(device, non_blocking=True)
+            labels = labels.to(device, non_blocking=True)
 
             # Compute forward pass and evaluate loss.
             outputs = model(inputs)
@@ -105,7 +105,7 @@ def train(model, optimizer, loss_fn, loader, params) -> float:
     return loss_avg()
 
 
-def evaluate(model, loss_fn, loader, params) -> float:
+def evaluate(model, loss_fn, loader, params, device) -> float:
     """Evaluate model.
 
     Args:
@@ -114,6 +114,7 @@ def evaluate(model, loss_fn, loader, params) -> float:
         loss_fn: A loss function.
         loader (torch.utils.data.DataLoader): The dataloader to use.
         params (pnpbi.util.utils.Params): Training parameters.
+        device (torch.device): The device to use.
 
     Return:
     ------
@@ -127,9 +128,8 @@ def evaluate(model, loss_fn, loader, params) -> float:
     with torch.no_grad():
         for inputs, labels in loader:
             # Move to GPU if available.
-            if params.cuda:
-                inputs = inputs.cuda(non_blocking=True)
-                labels = labels.cuda(non_blocking=True)
+            inputs = inputs.to(device, non_blocking=True)
+            labels = labels.to(device, non_blocking=True)
 
             outputs = model(inputs)
             batch_loss = loss_fn(outputs, labels)
@@ -138,7 +138,7 @@ def evaluate(model, loss_fn, loader, params) -> float:
     return loss_avg()
 
 
-def train_and_evaluate(model, optimizer, train_loader, valid_loader,
+def train_and_evaluate(model, optimizer, device, train_loader, valid_loader,
                        loss_fn, params, model_dir, restore_file=None):
     """Train model and evaluate after each epoch.
 
@@ -146,6 +146,7 @@ def train_and_evaluate(model, optimizer, train_loader, valid_loader,
     ----
         model (torch.nn.Module): Model.
         optimizer (torch.optim.Optimizer): Optimizer.
+        device (torch.device): The device to use.
         train_loader (torch.utils.data.DataLoader): Training data.
         valid_loader (torch.utils.data.DataLoader): Validation data.
         loss_fn: A loss function.
@@ -169,11 +170,11 @@ def train_and_evaluate(model, optimizer, train_loader, valid_loader,
         logging.info(f"Epoch {epoch + 1}/{params.num_epochs}")
 
         # Train one epoch (one full pass over training set)
-        loss = train(model, optimizer, loss_fn, train_loader, params)
+        loss = train(model, optimizer, loss_fn, train_loader, params, device)
         train_loss.append(loss)
 
         # Evaluate.
-        loss = evaluate(model, loss_fn, valid_loader, params)
+        loss = evaluate(model, loss_fn, valid_loader, params, device)
         val_loss.append(loss)
 
         # Save/overwrite checkpoint.
@@ -216,8 +217,9 @@ if __name__ == '__main__':
         json_path), "No json configuration file found at {}".format(json_path)
     params = utils.Params(json_path)
 
-    # Check if GPU is available.
-    params.cuda = torch.cuda.is_available()
+    # Check and use GPU if available.
+    cuda = torch.cuda.is_available()
+    device = torch.device('cuda:0' if cuda else 'cpu')
 
     # Init random seed for reproducible experiments.
     torch.manual_seed(123)
@@ -236,7 +238,7 @@ if __name__ == '__main__':
     sigma = 0.05
 
     # Set up operators, functional, and gradient.
-    pb = helper.setup_reconstruction_problem(image_size)
+    pb = helper.setup_reconstruction_problem(image_size, device)
     Kfun, Kadjfun, G, gradG, data_size = pb
 
     # Define training set.
@@ -244,7 +246,8 @@ if __name__ == '__main__':
                               image_size=image_size, sigma=sigma)
     trainset = data.Subset(trainset, list(range(0, 40)))
     train_loader = data.DataLoader(trainset, batch_size=params.batch_size,
-                                   shuffle=True, pin_memory=params.cuda,
+                                   shuffle=True,
+                                   pin_memory=torch.cuda.is_available(),
                                    num_workers=params.num_workers)
 
     # Define test set.
@@ -252,15 +255,14 @@ if __name__ == '__main__':
                             image_size=image_size, sigma=sigma)
     valset = data.Subset(valset, list(range(0, 10)))
     valid_loader = data.DataLoader(valset, batch_size=params.batch_size,
-                                   shuffle=False, pin_memory=params.cuda,
+                                   shuffle=False,
+                                   pin_memory=torch.cuda.is_available(),
                                    num_workers=params.num_workers)
 
-    # Create model and load if present.
-    denoising_model = DnCNN(D=6, C=64)
-
+    # Create model and push to GPU is available.
+    denoising_model = DnCNN(D=6, C=64).to(device)
     model = PG(denoising_model, image_size, gradG=gradG,
-               tau=2e-5, niter=5).cuda() if params.cuda \
-        else PG(denoising_model, image_size, gradG=gradG, tau=2e-5, niter=5)
+               tau=2e-5, niter=5).to(device)
 
     # Define optimisation problem.
     loss_fn = nn.MSELoss()
@@ -270,7 +272,7 @@ if __name__ == '__main__':
     logging.info(f"Starting training for {params.num_epochs} epoch(s).")
     logging.info(f"Parameters: {params}.")
 
-    train_and_evaluate(model, optimizer,
+    train_and_evaluate(model, optimizer, device,
                        train_loader, valid_loader, loss_fn, params,
                        args.model_dir, args.restore_file)
 

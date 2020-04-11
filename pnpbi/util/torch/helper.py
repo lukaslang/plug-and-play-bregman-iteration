@@ -43,19 +43,20 @@ def setup_denoising_problem(image_size: tuple):
     return Kfun, Kadjfun, G, gradG, data_size
 
 
-def setup_reconstruction_problem(image_size: tuple, cuda=False):
+def setup_reconstruction_problem(image_size, device):
     """Set up reconstruction problem using Radon transform."""
     # Define angles.
     nangles = 180
     angles = np.linspace(0, np.pi, nangles, False)
 
     # Define Radon transform and adjoint.
-    K, Kadj, ndet = radon.radon2d(*image_size, angles, cuda)
+    K, Kadj, ndet = radon.radon2d(*image_size, angles)
     data_size = (nangles, ndet)
 
     # Create function handles for use with torch.
     Kfun, Kadjfun = operators.create_op_functions(K, Kadj,
-                                                  image_size, data_size, cuda)
+                                                  image_size, data_size,
+                                                  device)
 
     # Create data fidelity and its gradient.
     G, gradG = functionals.OpSqNormDataTerm(Kfun, Kadjfun)

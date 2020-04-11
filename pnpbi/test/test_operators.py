@@ -132,12 +132,12 @@ class TestOperator(unittest.TestCase):
         device = torch.device('cuda') if cuda else 'cpu'
 
         # Define Radon transform and adjoint.
-        K, Kadj, ndet = radon.radon2d(*image_size, angles, cuda)
+        K, Kadj, ndet = radon.radon2d(*image_size, angles)
         data_size = (nangles, ndet)
 
         # Create function handles for use with torch.
         Kfun, Kadjfun = operators.create_op_functions(K, Kadj, image_size,
-                                                      data_size, cuda)
+                                                      data_size, device)
 
         # Create random matrix.
         x = torch.randn(1, 1, *image_size).to(device)

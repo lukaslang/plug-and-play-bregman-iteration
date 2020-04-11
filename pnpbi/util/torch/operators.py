@@ -21,7 +21,7 @@
 import torch
 
 
-def create_op_functions(K, Kadj, image_size, data_size, cuda=False):
+def create_op_functions(K, Kadj, image_size, data_size, device):
     """Create operater functions for use with torch.
 
     Args:
@@ -29,15 +29,12 @@ def create_op_functions(K, Kadj, image_size, data_size, cuda=False):
         K, Kadj: Function handles for a linear operator and its adjoint.
         image_size (tuple): A tuple specifying the image size, e.g. (m, n).
         data_size (tuple): The data size, e.g. (nangles, ndet).
-        cuda (bool): Whether to use GPU.
+        device (torch.device): The device to use.
 
     Return:
     ------
         Kfun, Kadjfun: Generic function handles for use with torch functions.
     """
-    # Check if GPU shall be used.
-    device = torch.device('cuda') if cuda else 'cpu'
-
     # Create function for linear operator.
     Op = LinearOperator.apply
 
@@ -62,7 +59,7 @@ def create_op_functions(K, Kadj, image_size, data_size, cuda=False):
 
 
 class LinearOperator(torch.autograd.Function):
-    """An linear operator."""
+    """An linear operator that is evaluated on the CPU."""
 
     @staticmethod
     def forward(ctx, x, K, Kadj):
@@ -71,7 +68,7 @@ class LinearOperator(torch.autograd.Function):
         Args:
         ----
             ctx: The context.
-            x (Tensor): The input.
+            x (torch.nn.Tensor): The input.
             K, Kadj: Function handles for a linear operator and its adjoint.
 
         Return:
