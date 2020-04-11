@@ -29,13 +29,14 @@ def create_op_functions(K, Kadj, image_size, data_size, cuda=False):
         K, Kadj: Function handles for a linear operator and its adjoint.
         image_size (tuple): A tuple specifying the image size, e.g. (m, n).
         data_size (tuple): The data size, e.g. (nangles, ndet).
+        cuda (bool): Whether to use GPU.
 
     Return:
     ------
         Kfun, Kadjfun: Generic function handles for use with torch functions.
     """
     # Check if GPU shall be used.
-    device = 'cuda:0' if cuda else None
+    device = torch.device('cuda') if cuda else 'cpu'
 
     # Create function for linear operator.
     Op = LinearOperator.apply
@@ -43,7 +44,7 @@ def create_op_functions(K, Kadj, image_size, data_size, cuda=False):
     # Create torch function that applies operator.
     def Kfun(x):
         nimg = x.shape[0]
-        y = torch.ones((nimg, 1, *data_size), device=device)
+        y = torch.ones((nimg, 1, *data_size)).to(device)
         for k in range(nimg):
             y[k][0] = Op(x[k][0], K, Kadj)
         return y
@@ -51,7 +52,7 @@ def create_op_functions(K, Kadj, image_size, data_size, cuda=False):
     # Create torch function that applies adjoint operator.
     def Kadjfun(x):
         nimg = x.shape[0]
-        y = torch.ones((nimg, 1, *image_size), device=device)
+        y = torch.ones((nimg, 1, *image_size)).to(device)
         for k in range(nimg):
             y[k][0] = Op(x[k][0], Kadj, K)
         return y
