@@ -236,7 +236,7 @@ if __name__ == '__main__':
     sigma = 0.05
 
     # Set up operators, functional, and gradient.
-    pb = helper.setup_reconstruction_problem(image_size)
+    pb = helper.setup_reconstruction_problem(image_size, params.cuda)
     Kfun, Kadjfun, G, gradG, data_size = pb
 
     # Define training set.
@@ -254,9 +254,6 @@ if __name__ == '__main__':
     valid_loader = data.DataLoader(valset, batch_size=params.batch_size,
                                    shuffle=False, pin_memory=params.cuda,
                                    num_workers=params.num_workers)
-
-    pb = helper.setup_reconstruction_problem(image_size, params.cuda)
-    Kfun, Kadjfun, G, gradG, data_size = pb
 
     # Create model and load if present.
     denoising_model = DnCNN(D=6, C=64)
