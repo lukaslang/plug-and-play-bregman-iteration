@@ -126,6 +126,43 @@ class TestOperator(unittest.TestCase):
         nangles = 180
         angles = np.linspace(0, np.pi, nangles, False)
 
+        # Check if GPU is available.
+        cuda = torch.cuda.is_available()
+
+        # Create operators.
+        K, Kadj, ndet = radon.radon2d(m, n, angles, cuda)
+
+        # Create function.
+        Op = LinearOperator.apply
+
+        # Apply to dummy input.
+        x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
+        f = Op(x, K, Kadj)
+
+        # Check for simple loss.
+        loss = f.sum()
+        loss.backward()
+        np.testing.assert_allclose(x.grad.numpy(),
+                                   Kadj(np.ones((nangles, ndet))))
+
+        def op_fun(x):
+            out = LinearOperator.apply(x, K, Kadj)
+            return out.sum()
+
+        # Check for anomalies.
+        with tag.detect_anomaly():
+            x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
+            out = op_fun(x)
+            out.backward()
+
+    def test_LinearOperator_radon_gradcheck(self):
+        # Set image size.
+        m, n = 5, 4
+
+        # Define angles.
+        nangles = 180
+        angles = np.linspace(0, np.pi, nangles, False)
+
         # Create operators.
         K, Kadj, ndet = radon.radon2d(m, n, angles)
 
