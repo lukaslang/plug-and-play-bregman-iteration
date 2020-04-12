@@ -119,7 +119,7 @@ def set_logger(log_path):
         logger.addHandler(stream_handler)
 
 
-def load_checkpoint(restore_file, model, optimizer=None):
+def load_checkpoint(restore_file, model, optimizer=None, device=None):
     """Load model parameters (state_dict) from restore_file.
 
     If optimizer is specified it is assumed restore_files also holds these
@@ -131,13 +131,15 @@ def load_checkpoint(restore_file, model, optimizer=None):
         model (torch.nn.Module): The model for which parameters are loaded.
         optimizer (torch.optim.Optimizer): The optimizer for which parameters
             are loaded.
+        device (torch.device): The target device.
 
     Return:
     ------
         epoch (int): The number of finished epochs.
     """
     if os.path.exists(restore_file):
-        checkpoint = torch.load(restore_file)
+        checkpoint = torch.load(restore_file) if device is None \
+            else torch.load(restore_file, map_location=device)
         model.load_state_dict(checkpoint['state_dict'])
 
         if optimizer:

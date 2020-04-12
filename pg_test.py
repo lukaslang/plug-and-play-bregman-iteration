@@ -77,7 +77,7 @@ if __name__ == '__main__':
     logging.info(f"Loading datasets from '{args.data_dir}'.")
 
     # Define data.
-    image_size = (40, 40)
+    image_size = (100, 100)
 
     # Set noise level.
     sigma = 0.05
@@ -103,7 +103,7 @@ if __name__ == '__main__':
     if args.restore_file is not None:
         restore_path = os.path.join(args.model_dir, args.restore_file)
         logging.info(f"Loading checkpoint from '{restore_path}'.")
-        utils.load_checkpoint(restore_path, model)
+        utils.load_checkpoint(restore_path, model, device=device)
 
     # Create Landweber iteration.
     class Identity(torch.nn.Module):
@@ -112,7 +112,7 @@ if __name__ == '__main__':
         def forward(self, input):
             """Return input."""
             return input
-    lw_model = PG(Identity(), image_size, gradG=gradG, tau=2e-5, niter=100)
+    lw_model = PG(Identity(), image_size, gradG=gradG, tau=2e-5, niter=20)
 
     # Set models to evaluate mode.
     model.eval()
