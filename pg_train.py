@@ -161,7 +161,8 @@ def train_and_evaluate(model, optimizer, device, train_loader, valid_loader,
     if restore_file is not None:
         restore_path = os.path.join(model_dir, restore_file)
         logging.info(f"Loading checkpoint from '{restore_path}'.")
-        fin_epochs = utils.load_checkpoint(restore_path, model, optimizer)
+        fin_epochs = utils.load_checkpoint(restore_path, model,
+                                           optimizer, device)
 
     # Init lists to store losses during epochs.
     train_loss, val_loss = [], []
@@ -225,7 +226,8 @@ if __name__ == '__main__':
 
     # Check and use GPU if available.
     cuda = torch.cuda.is_available()
-    device = torch.device('cuda:0' if cuda else 'cpu')
+    astra_device = torch.device('cuda:0' if cuda else 'cpu')
+    torch_device = torch.device('cpu')
 
     # Init random seed for reproducible experiments.
     torch.manual_seed(123)
@@ -244,7 +246,7 @@ if __name__ == '__main__':
     sigma = 0.05
 
     # Set up operators, functional, and gradient.
-    pb = helper.setup_reconstruction_problem(image_size, torch.device('cpu'))
+    pb = helper.setup_reconstruction_problem(image_size, astra_device)
     Kfun, Kadjfun, G, gradG, data_size = pb
 
     # Define training set.
@@ -266,13 +268,13 @@ if __name__ == '__main__':
                                    num_workers=params.num_workers)
 
     # Set up operators, functional, and gradient.
-    pb = helper.setup_reconstruction_problem(image_size, device)
+    pb = helper.setup_reconstruction_problem(image_size, torch_device)
     Kfun, Kadjfun, G, gradG, data_size = pb
 
     # Create model and push to GPU is available.
-    denoising_model = DnCNN(D=6, C=64).to(device)
+    denoising_model = DnCNN(D=6, C=64).to(torch_device)
     model = PG(denoising_model, image_size, gradG=gradG,
-               tau=2e-5, niter=5).to(device)
+               tau=2e-5, niter=5).to(torch_device)
 
     # Define optimisation problem.
     loss_fn = nn.MSELoss()
@@ -282,7 +284,7 @@ if __name__ == '__main__':
     logging.info(f"Starting training for {params.num_epochs} epoch(s).")
     logging.info(f"Parameters: {params}.")
 
-    train_and_evaluate(model, optimizer, device,
+    train_and_evaluate(model, optimizer, torch_device,
                        train_loader, valid_loader, loss_fn, params,
                        args.model_dir, args.restore_file)
 
