@@ -18,6 +18,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with PNPBI. If not, see <http://www.gnu.org/licenses/>.
 from pnpbi.data import NoisyCTDataset
+from pnpbi.model import DnCNN, PG
 from pnpbi.util.torch import helper
 import matplotlib.pyplot as plt
 import numpy as np
@@ -95,6 +96,82 @@ class TestData(unittest.TestCase):
 
             # Display results.
             disp_images = torch.cat((inputs, inputs_check),
+                                    2).to(torch.device('cpu'))
+            imshow(torchvision.utils.make_grid(disp_images, normalize=True))
+
+    def test_create_op_functions_cuda_cnn(self):
+
+        # Define data dir.
+        data_dir = 'data/phantom_test/images'
+
+        # Check and use GPU if available.
+        cuda = torch.cuda.is_available()
+
+        # Use CPU for testing.
+        cuda = False
+        device = torch.device('cuda:0' if cuda else 'cpu')
+
+        # Init random seed for reproducible experiments.
+        torch.manual_seed(0)
+        torch.cuda.manual_seed(0)
+
+        # Define data.
+        image_size = (100, 100)
+
+        # Set noise level.
+        sigma = 0.05
+
+        # Set up operators, functional, and gradient.
+        pb = helper.setup_reconstruction_problem(image_size,
+                                                 torch.device('cpu'))
+        Kfun, Kadjfun, G, gradG, data_size = pb
+
+        # Define training set.
+        trainset = NoisyCTDataset(Kfun, data_dir, mode='train',
+                                  image_size=image_size, sigma=sigma)
+        train_loader = data.DataLoader(trainset, batch_size=4,
+                                       shuffle=True,
+                                       pin_memory=torch.cuda.is_available(),
+                                       num_workers=1)
+
+        # Set up operators, functional, and gradient.
+        pb = helper.setup_reconstruction_problem(image_size, device)
+        Kfun, Kadjfun, G, gradG, data_size = pb
+
+        # Create model and push to GPU is available.
+        denoising_model = DnCNN(D=6, C=64).to(device)
+        model = PG(denoising_model, image_size, gradG=gradG,
+                   tau=2e-5, niter=5).to(device)
+        model.eval()
+
+        # Plot results.
+        for inputs, labels in train_loader:
+            # Move to GPU if available.
+            inputs = inputs.to(device, non_blocking=True)
+            labels = labels.to(device, non_blocking=True)
+
+            # Check data.
+            inputs_check = Kfun(labels)
+
+            # Compute reconstruction.
+            outputs = Kadjfun(inputs)
+
+            # Compute forward pass.
+            with torch.no_grad():
+                pg_outputs = model(inputs)
+
+            # Display results.
+            disp_images = torch.cat((labels, outputs),
+                                    2).to(torch.device('cpu'))
+            imshow(torchvision.utils.make_grid(disp_images, normalize=True))
+
+            # Display results.
+            disp_images = torch.cat((inputs, inputs_check),
+                                    2).to(torch.device('cpu'))
+            imshow(torchvision.utils.make_grid(disp_images, normalize=True))
+
+            # Display results.
+            disp_images = torch.cat((labels, pg_outputs),
                                     2).to(torch.device('cpu'))
             imshow(torchvision.utils.make_grid(disp_images, normalize=True))
 
