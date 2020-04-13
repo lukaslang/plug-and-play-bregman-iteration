@@ -160,6 +160,7 @@ class TestOperator(unittest.TestCase):
 
         # Check if GPU is available.
         cuda = torch.cuda.is_available()
+        device = torch.device('cuda:0' if cuda else 'cpu')
 
         # Create operators.
         K, Kadj, ndet = radon.radon2d(m, n, angles, cuda)
@@ -168,13 +169,14 @@ class TestOperator(unittest.TestCase):
         Op = LinearOperator.apply
 
         # Apply to dummy input.
-        x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
+        x = torch.randn(m, n, requires_grad=True,
+                        dtype=torch.double, device=device)
         f = Op(x, K, Kadj)
 
         # Check for simple loss.
         loss = f.sum()
         loss.backward()
-        np.testing.assert_allclose(x.grad.numpy(),
+        np.testing.assert_allclose(x.grad.cpu().numpy(),
                                    Kadj(np.ones((nangles, ndet))))
 
         def op_fun(x):
@@ -183,7 +185,8 @@ class TestOperator(unittest.TestCase):
 
         # Check for anomalies.
         with tag.detect_anomaly():
-            x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
+            x = torch.randn(m, n, requires_grad=True,
+                            dtype=torch.double, device=device)
             out = op_fun(x)
             out.backward()
 
