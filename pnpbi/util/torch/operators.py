@@ -76,7 +76,7 @@ class LinearOperator(torch.autograd.Function):
             result (Tensor): The result of applying K to x.
         """
         ctx.Kadj = Kadj
-        result = x.new(K(x.detach().cpu().numpy()))
+        result = x.new(K(x.detach().numpy()))
         ctx.save_for_backward(x)
         return result
 
@@ -95,5 +95,5 @@ class LinearOperator(torch.autograd.Function):
             respect to the input.
         """
         x, = ctx.saved_tensors
-        output = grad_output.cpu().numpy()
+        output = grad_output.numpy()
         return x.new(ctx.Kadj(output)), None, None
