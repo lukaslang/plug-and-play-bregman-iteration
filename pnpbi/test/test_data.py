@@ -75,6 +75,10 @@ class TestData(unittest.TestCase):
 
         # Plot results.
         for inputs, labels in train_loader:
+            # Move to GPU if available.
+            inputs = inputs.to(device, non_blocking=True)
+            labels = labels.to(device, non_blocking=True)
+
             # Check data.
             inputs_check = Kfun(labels)
 
