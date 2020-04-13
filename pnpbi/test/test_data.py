@@ -44,6 +44,9 @@ class TestData(unittest.TestCase):
 
         # Check and use GPU if available.
         cuda = torch.cuda.is_available()
+
+        # Use CPU for testing.
+        cuda = False
         device = torch.device('cuda:0' if cuda else 'cpu')
 
         # Init random seed for reproducible experiments.
@@ -88,12 +91,12 @@ class TestData(unittest.TestCase):
             # Display results.
             disp_images = torch.cat((labels, outputs),
                                     2).to(torch.device('cpu'))
-            # imshow(torchvision.utils.make_grid(disp_images, normalize=True))
+            imshow(torchvision.utils.make_grid(disp_images, normalize=True))
 
             # Display results.
             disp_images = torch.cat((inputs, inputs_check),
                                     2).to(torch.device('cpu'))
-            # imshow(torchvision.utils.make_grid(disp_images, normalize=True))
+            imshow(torchvision.utils.make_grid(disp_images, normalize=True))
 
 
 if __name__ == '__main__':
