@@ -57,7 +57,8 @@ class TestData(unittest.TestCase):
         sigma = 0.05
 
         # Set up operators, functional, and gradient.
-        pb = helper.setup_reconstruction_problem(image_size, device)
+        pb = helper.setup_reconstruction_problem(image_size,
+                                                 torch.device('cpu'))
         Kfun, Kadjfun, G, gradG, data_size = pb
 
         # Define training set.
@@ -68,13 +69,24 @@ class TestData(unittest.TestCase):
                                        pin_memory=torch.cuda.is_available(),
                                        num_workers=1)
 
+        # Set up operators, functional, and gradient.
+        pb = helper.setup_reconstruction_problem(image_size, device)
+        Kfun, Kadjfun, G, gradG, data_size = pb
+
         # Plot results.
         for inputs, labels in train_loader:
+            # Check data.
+            inputs_check = Kfun(labels)
+
             # Compute reconstruction.
             outputs = Kadjfun(inputs)
 
             # Display results.
             disp_images = torch.cat((labels, outputs), 2)
+            imshow(torchvision.utils.make_grid(disp_images, normalize=True))
+
+            # Display results.
+            disp_images = torch.cat((inputs, inputs_check), 2)
             imshow(torchvision.utils.make_grid(disp_images, normalize=True))
 
 
