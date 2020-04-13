@@ -86,11 +86,13 @@ class TestData(unittest.TestCase):
             outputs = Kadjfun(inputs)
 
             # Display results.
-            disp_images = torch.cat((labels, outputs), 2)
+            disp_images = torch.cat((labels, outputs),
+                                    2).to(torch.device('cpu'))
             imshow(torchvision.utils.make_grid(disp_images, normalize=True))
 
             # Display results.
-            disp_images = torch.cat((inputs, inputs_check), 2)
+            disp_images = torch.cat((inputs, inputs_check),
+                                    2).to(torch.device('cpu'))
             imshow(torchvision.utils.make_grid(disp_images, normalize=True))
 
 
