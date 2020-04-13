@@ -39,9 +39,6 @@ class TestData(unittest.TestCase):
 
     def test_create_op_functions_cuda(self):
 
-        # Set GPU start method.
-        torch.multiprocessing.set_start_method('spawn')
-
         # Define data dir.
         data_dir = 'data/phantom_test/images'
 
