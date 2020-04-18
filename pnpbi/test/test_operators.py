@@ -29,6 +29,64 @@ import unittest
 
 class TestOperator(unittest.TestCase):
 
+    def test_LinearOperator_Identity(self):
+        # Set image size.
+        m, n = 19, 23
+
+        # Define operators.
+        def K(x):
+            return x
+
+        def Kadj(y):
+            return y
+
+        # Create function.
+        Op = LinearOperator.apply
+
+        # Apply to dummy input.
+        x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
+        f = Op(x, K, Kadj)
+
+        # Check for simple loss.
+        loss = f.sum()
+        loss.backward()
+        torch.testing.assert_allclose(Kadj(x.new_ones((m, n))), x.grad)
+
+        # Check gradient.
+        x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
+        tag.gradcheck(lambda t: Op(t, K, Kadj), x)
+
+    def test_LinearOperator_Identity_cuda(self):
+        # Set image size.
+        m, n = 19, 23
+
+        # Define operators.
+        def K(x):
+            return x
+
+        def Kadj(y):
+            return y
+
+        # Create function.
+        Op = LinearOperator.apply
+
+        # Check if GPU is available.
+        cuda = torch.cuda.is_available()
+        device = torch.device('cuda' if cuda else 'cpu')
+
+        # Apply to dummy input.
+        x = torch.randn(m, n, requires_grad=True,
+                        dtype=torch.double, device=device)
+        f = Op(x, K, Kadj)
+
+        # Check for simple loss.
+        loss = f.sum()
+        loss.backward()
+        torch.testing.assert_allclose(Kadj(x.new_ones((m, n))), x.grad)
+
+        # Check gradient.
+        tag.gradcheck(lambda t: Op(t, K, Kadj), x)
+
     def test_LinearOperator_Matrix(self):
         # Set image size.
         m, n = 19, 23
@@ -53,10 +111,9 @@ class TestOperator(unittest.TestCase):
         # Check for simple loss.
         loss = f.sum()
         loss.backward()
-        np.testing.assert_allclose(x.grad.numpy(), Kadj(np.ones((p, n))))
+        torch.testing.assert_allclose(Kadj(x.new_ones((p, n))), x.grad)
 
         # Check gradient.
-        x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
         tag.gradcheck(lambda t: Op(t, K, Kadj), x)
 
     def test_LinearOperator_Matrix_Transpose(self):
@@ -83,10 +140,9 @@ class TestOperator(unittest.TestCase):
         # Check for simple loss.
         loss = f.sum()
         loss.backward()
-        np.testing.assert_allclose(x.grad.numpy(), K(np.ones((m, n))))
+        torch.testing.assert_allclose(K(x.new_ones((m, n))), x.grad)
 
         # Check gradient.
-        x = torch.randn(p, n, requires_grad=True, dtype=torch.double)
         tag.gradcheck(lambda t: Op(t, Kadj, K), x)
 
     def test_LinearOperator_Random_Matrix(self):
@@ -113,10 +169,9 @@ class TestOperator(unittest.TestCase):
         # Check for simple loss.
         loss = f.sum()
         loss.backward()
-        np.testing.assert_allclose(x.grad.numpy(), Kadj(np.ones((p, n))))
+        torch.testing.assert_allclose(Kadj(x.new_ones((p, n))), x.grad)
 
         # Check gradient.
-        x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
         tag.gradcheck(lambda t: Op(t, K, Kadj), x)
 
     def test_create_op_functions_cuda(self):
@@ -160,7 +215,7 @@ class TestOperator(unittest.TestCase):
 
         # Check if GPU is available.
         cuda = torch.cuda.is_available()
-        device = torch.device('cuda:0' if cuda else 'cpu')
+        device = torch.device('cuda' if cuda else 'cpu')
 
         # Create operators.
         K, Kadj, ndet = radon.radon2d(m, n, angles, cuda)
