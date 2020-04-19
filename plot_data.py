@@ -27,22 +27,22 @@ from pnpbi.util.torch import helper
 
 # Define data.
 image_dir = './data/phantom/images'
-image_size = (40, 40)
+image_size = (128, 128)
 sigma = 0.05
 
 # Set up operators, functional, and gradient.
 pb = helper.setup_reconstruction_problem(image_size)
-Kfun, Kadjfun, G, gradG, data_size = pb
+K, Kadj, G, gradG, data_size = pb
 
 # Define training set.
-trainset = NoisyCTDataset(Kfun, image_dir, mode='train',
+trainset = NoisyCTDataset(K, image_dir, mode='train',
                           image_size=image_size, sigma=sigma)
 trainset = torch.utils.data.Subset(trainset, list(range(0, 40)))
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=4,
                                           shuffle=True, num_workers=2)
 
 # Define test set.
-testset = NoisyCTDataset(Kfun, image_dir, mode='test',
+testset = NoisyCTDataset(K, image_dir, mode='test',
                          image_size=image_size, sigma=sigma)
 testset = torch.utils.data.Subset(testset, list(range(0, 10)))
 testloader = torch.utils.data.DataLoader(testset, batch_size=4,
@@ -51,7 +51,6 @@ testloader = torch.utils.data.DataLoader(testset, batch_size=4,
 
 def imshow(img):
     """De-normalise and plot image."""
-    # img = img / 2 + 0.5
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)), cmap='gray')
     plt.colorbar()
@@ -70,6 +69,5 @@ def datashow(img):
 for data in testloader:
     images, labels = data
     imshow(torchvision.utils.make_grid(images, normalize=True))
-    imshow(torchvision.utils.make_grid(Kadjfun(images), normalize=True))
+    imshow(torchvision.utils.make_grid(Kadj(images), normalize=True))
     imshow(torchvision.utils.make_grid(labels, normalize=True))
-    datashow(torchvision.utils.make_grid(Kfun(labels), normalize=True))

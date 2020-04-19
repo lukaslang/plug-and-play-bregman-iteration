@@ -77,7 +77,7 @@ if __name__ == '__main__':
     logging.info(f"Loading datasets from '{args.data_dir}'.")
 
     # Define data.
-    image_size = (100, 100)
+    image_size = (128, 128)
 
     # Set noise level.
     sigma = 0.05

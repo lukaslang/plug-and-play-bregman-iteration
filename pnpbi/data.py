@@ -58,7 +58,7 @@ class NoisyDataset(Dataset):
 
 class NoisyCTDataset(Dataset):
 
-    def __init__(self, K, root_dir, mode='train', image_size=(100, 100), sigma=30):
+    def __init__(self, K, root_dir, mode='train', image_size=(100, 100), sigma=0):
         super(NoisyCTDataset, self).__init__()
         self.mode = mode
         self.image_size = image_size
@@ -98,7 +98,7 @@ class NoisyCTDataset(Dataset):
 
 class NoisyDCIMDataset(Dataset):
 
-    def __init__(self, K, root_dir, mode='train', image_size=(100, 100), sigma=30):
+    def __init__(self, K, root_dir, mode='train', image_size=(100, 100), sigma=0):
         super(NoisyDCIMDataset, self).__init__()
         self.mode = mode
         self.image_size = image_size
@@ -116,34 +116,27 @@ class NoisyDCIMDataset(Dataset):
 
     def __getitem__(self, idx):
         img_path = os.path.join(self.images_dir, self.files[idx])
-
-      #  filename = get_testdata_files(img_path)
-        dataset = pydicom.dcmread(img_path)
-        #clean = dataset.pixel_array
+        dataset = pydicom.dcmread(img_path, force=True)
+        dataset.file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
         clean = Image.fromarray(dataset.pixel_array)
 
-        #clean = Image.open(img_path).convert('RGB')
-        # random crop
-        i = np.random.randint(clean.size[0] - self.image_size[0])
-        j = np.random.randint(clean.size[1] - self.image_size[1])
-
-        clean = clean.crop([i, j, i+self.image_size[0], j+self.image_size[1]])
         transform = transforms.Compose([
             transforms.Grayscale(),
+            transforms.RandomRotation(90),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomResizedCrop(self.image_size),
             # convert it to a tensor
             transforms.ToTensor(),
-            # normalize it to the range [−1, 1]
-            transforms.Normalize([.5], [.5])
+            # normalize it to the range [0, 1]
+            transforms.Normalize([0], [1])
         ])
-        clean = transform(clean).unsqueeze(0)
+        clean = transform(clean)
 
         # Generate data and add noise.
-        data = self.K(clean)
-        noisy = data + 2 / 255 * self.sigma * torch.randn(data.shape)
+        data = self.K(clean.unsqueeze(0)).squeeze(0)
+        noisy = data + self.sigma**2 * data.var() * data.max() * torch.randn(data.shape)
 
         return noisy, clean
-
-
 
 class NoisyBSDSDataset(Dataset):
 
