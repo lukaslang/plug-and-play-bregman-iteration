@@ -26,6 +26,24 @@ import torch
 import torch.autograd as tag
 import unittest
 
+class NumpyMatrixMultOperator:
+
+    def __init__(self, M):
+        self.M = M
+
+    def __call__(self, x):
+        x_np = x.detach().numpy()
+        res = self.M @ x_np
+        return torch.from_numpy(res)
+
+class TorchMatrixMultOperator:
+
+    def __init__(self, M):
+        self.M = M
+
+    def __call__(self, x):
+        return torch.mm(self.M, x)
+
 
 class TestOperator(unittest.TestCase):
 
@@ -95,11 +113,9 @@ class TestOperator(unittest.TestCase):
         p = 5
         M = sparse.spdiags(np.ones((p, )), 0, p, m)
 
-        def K(x):
-            return M @ x
-
-        def Kadj(y):
-            return M.T @ y
+        # Define operators.
+        K = NumpyMatrixMultOperator(M)
+        Kadj = NumpyMatrixMultOperator(M.T)
 
         # Create function.
         Op = LinearOperator.apply
@@ -124,11 +140,9 @@ class TestOperator(unittest.TestCase):
         p = 7
         M = sparse.spdiags(np.ones((p, )), 0, p, m)
 
-        def K(x):
-            return M @ x
-
-        def Kadj(y):
-            return M.T @ y
+        # Define operators.
+        K = NumpyMatrixMultOperator(M)
+        Kadj = NumpyMatrixMultOperator(M.T)
 
         # Create function.
         Op = LinearOperator.apply
@@ -153,11 +167,9 @@ class TestOperator(unittest.TestCase):
         p = 5
         M = sparse.rand(p, m, density=0.1, dtype=np.double)
 
-        def K(x):
-            return M @ x
-
-        def Kadj(y):
-            return M.T @ y
+        # Define operators.
+        K = NumpyMatrixMultOperator(M)
+        Kadj = NumpyMatrixMultOperator(M.T)
 
         # Create function.
         Op = LinearOperator.apply
@@ -174,87 +186,17 @@ class TestOperator(unittest.TestCase):
         # Check gradient.
         tag.gradcheck(lambda t: Op(t, K, Kadj), x)
 
-    def test_create_op_functions_cuda(self):
-        # Define image size.
-        image_size = (31, 23)
-
-        # Define angles.
-        nangles = 180
-        angles = np.linspace(0, np.pi, nangles, False)
-
-        # Check if GPU is available.
-        cuda = torch.cuda.is_available()
-        device = torch.device('cuda') if cuda else 'cpu'
-
-        # Define Radon transform and adjoint.
-        K, Kadj, ndet = radon.radon2d(*image_size, angles)
-        data_size = (nangles, ndet)
-
-        # Create function handles for use with torch.
-        Kfun, Kadjfun = operators.create_op_functions(K, Kadj, image_size,
-                                                      data_size, device)
-
-        # Create random matrix.
-        x = torch.randn(1, 1, *image_size).to(device)
-
-        # Create second random matrix.
-        y = torch.randn(1, 1, *data_size).to(device)
-
-        # Check adjointness up to certain relative tolerance.
-        ip1 = torch.dot(Kfun(x).flatten(), y.flatten())
-        ip2 = torch.dot(x.flatten(), Kadjfun(y).flatten())
-        torch.allclose(ip1, ip2)
-
-    def test_LinearOperator_radon_cuda(self):
+    def test_LinearOperator_Random_Matrix_torch(self):
         # Set image size.
-        m, n = 5, 4
+        m, n = 19, 23
 
-        # Define angles.
-        nangles = 180
-        angles = np.linspace(0, np.pi, nangles, False)
+        # Create an underdetermined random system.
+        p = 5
+        M = torch.randn(p, m, dtype=torch.double)
 
-        # Check if GPU is available.
-        cuda = torch.cuda.is_available()
-        device = torch.device('cuda' if cuda else 'cpu')
-
-        # Create operators.
-        K, Kadj, ndet = radon.radon2d(m, n, angles, cuda)
-
-        # Create function.
-        Op = LinearOperator.apply
-
-        # Apply to dummy input.
-        x = torch.randn(m, n, requires_grad=True,
-                        dtype=torch.double, device=device)
-        f = Op(x, K, Kadj)
-
-        # Check for simple loss.
-        loss = f.sum()
-        loss.backward()
-        np.testing.assert_allclose(x.grad.cpu().numpy(),
-                                   Kadj(np.ones((nangles, ndet))))
-
-        def op_fun(x):
-            out = LinearOperator.apply(x, K, Kadj)
-            return out.sum()
-
-        # Check for anomalies.
-        with tag.detect_anomaly():
-            x = torch.randn(m, n, requires_grad=True,
-                            dtype=torch.double, device=device)
-            out = op_fun(x)
-            out.backward()
-
-    def test_LinearOperator_radon_gradcheck(self):
-        # Set image size.
-        m, n = 5, 4
-
-        # Define angles.
-        nangles = 180
-        angles = np.linspace(0, np.pi, nangles, False)
-
-        # Create operators.
-        K, Kadj, ndet = radon.radon2d(m, n, angles)
+        # Define operators.
+        K = TorchMatrixMultOperator(M)
+        Kadj = TorchMatrixMultOperator(M.T)
 
         # Create function.
         Op = LinearOperator.apply
@@ -266,22 +208,9 @@ class TestOperator(unittest.TestCase):
         # Check for simple loss.
         loss = f.sum()
         loss.backward()
-        np.testing.assert_allclose(x.grad.numpy(),
-                                   Kadj(np.ones((nangles, ndet))))
+        torch.testing.assert_allclose(Kadj(x.new_ones((p, n))), x.grad)
 
-        def op_fun(x):
-            out = LinearOperator.apply(x, K, Kadj)
-            return out.sum()
-
-        # Check for anomalies.
-        with tag.detect_anomaly():
-            x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
-            out = op_fun(x)
-            out.backward()
-
-        # Check numerical gradient up to certain tolerance.
-        # Due to inaccuracy of adjoint this check fails.
-        x = torch.randn(m, n, requires_grad=True, dtype=torch.double)
+        # Check gradient.
         tag.gradcheck(lambda t: Op(t, K, Kadj), x)
 
 

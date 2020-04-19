@@ -226,12 +226,11 @@ if __name__ == '__main__':
 
     # Check and use GPU if available.
     cuda = torch.cuda.is_available()
-    astra_device = torch.device('cuda:0' if cuda else 'cpu')
-    torch_device = torch.device('cpu')
+    torch_device = torch.device('cuda' if cuda else 'cpu')
 
     # Init random seed for reproducible experiments.
-    torch.manual_seed(123)
-    torch.cuda.manual_seed(123)
+    torch.manual_seed(0)
+    torch.cuda.manual_seed(0)
 
     # Init logger
     utils.set_logger(os.path.join(args.model_dir, 'train.log'))
@@ -240,17 +239,17 @@ if __name__ == '__main__':
     logging.info(f"Loading datasets from '{args.data_dir}'.")
 
     # Define data.
-    image_size = (100, 100)
+    image_size = (40, 40)
 
     # Set noise level.
     sigma = 0.05
 
     # Set up operators, functional, and gradient.
-    pb = helper.setup_reconstruction_problem(image_size, astra_device)
-    Kfun, Kadjfun, G, gradG, data_size = pb
+    pb = helper.setup_reconstruction_problem(image_size)
+    K, Kadj, G, gradG, data_size = pb
 
     # Define training set.
-    trainset = NoisyCTDataset(Kfun, args.data_dir, mode='train',
+    trainset = NoisyCTDataset(K, args.data_dir, mode='train',
                               image_size=image_size, sigma=sigma)
     trainset = data.Subset(trainset, list(range(0, 100)))
     train_loader = data.DataLoader(trainset, batch_size=params.batch_size,
@@ -259,17 +258,13 @@ if __name__ == '__main__':
                                    num_workers=params.num_workers)
 
     # Define test set.
-    valset = NoisyCTDataset(Kfun, args.data_dir, mode='test',
+    valset = NoisyCTDataset(K, args.data_dir, mode='test',
                             image_size=image_size, sigma=sigma)
     valset = data.Subset(valset, list(range(0, 10)))
     valid_loader = data.DataLoader(valset, batch_size=params.batch_size,
                                    shuffle=False,
                                    pin_memory=torch.cuda.is_available(),
                                    num_workers=params.num_workers)
-
-    # Set up operators, functional, and gradient.
-    pb = helper.setup_reconstruction_problem(image_size, torch_device)
-    Kfun, Kadjfun, G, gradG, data_size = pb
 
     # Create model and push to GPU is available.
     denoising_model = DnCNN(D=6, C=64).to(torch_device)

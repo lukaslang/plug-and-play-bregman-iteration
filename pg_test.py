@@ -64,11 +64,11 @@ if __name__ == '__main__':
 
     # Check and use GPU if available.
     cuda = torch.cuda.is_available()
-    device = torch.device('cuda:0' if cuda else 'cpu')
+    device = torch.device('cuda' if cuda else 'cpu')
 
     # Init random seed for reproducible experiments.
-    torch.manual_seed(123)
-    torch.cuda.manual_seed(123)
+    torch.manual_seed(0)
+    torch.cuda.manual_seed(0)
 
     # Init logger
     utils.set_logger(os.path.join(args.model_dir, 'train.log'))
@@ -77,17 +77,17 @@ if __name__ == '__main__':
     logging.info(f"Loading datasets from '{args.data_dir}'.")
 
     # Define data.
-    image_size = (100, 100)
+    image_size = (40, 40)
 
     # Set noise level.
     sigma = 0.05
 
     # Set up operators, functional, and gradient.
-    pb = helper.setup_reconstruction_problem(image_size, device)
-    Kfun, Kadjfun, G, gradG, data_size = pb
+    pb = helper.setup_reconstruction_problem(image_size)
+    K, Kadj, G, gradG, data_size = pb
 
     # Define test set.
-    valset = NoisyCTDataset(Kfun, args.data_dir, mode='test',
+    valset = NoisyCTDataset(K, args.data_dir, mode='test',
                             image_size=image_size, sigma=sigma)
     valset = data.Subset(valset, list(range(0, 4)))
     valid_loader = data.DataLoader(valset, batch_size=params.batch_size,

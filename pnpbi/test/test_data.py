@@ -38,7 +38,7 @@ def imshow(img):
 
 class TestData(unittest.TestCase):
 
-    def test_create_op_functions_cuda(self):
+    def test_create_op_functions(self):
 
         # Define data dir.
         data_dir = 'data/phantom_test/images'
@@ -47,8 +47,7 @@ class TestData(unittest.TestCase):
         cuda = torch.cuda.is_available()
 
         # Use CPU for testing.
-        cuda = False
-        device = torch.device('cuda:0' if cuda else 'cpu')
+        device = torch.device('cuda' if cuda else 'cpu')
 
         # Init random seed for reproducible experiments.
         torch.manual_seed(0)
@@ -61,21 +60,16 @@ class TestData(unittest.TestCase):
         sigma = 0.05
 
         # Set up operators, functional, and gradient.
-        pb = helper.setup_reconstruction_problem(image_size,
-                                                 torch.device('cpu'))
-        Kfun, Kadjfun, G, gradG, data_size = pb
+        pb = helper.setup_reconstruction_problem(image_size)
+        K, Kadj, G, gradG, data_size = pb
 
         # Define training set.
-        trainset = NoisyCTDataset(Kfun, data_dir, mode='train',
+        trainset = NoisyCTDataset(K, data_dir, mode='train',
                                   image_size=image_size, sigma=sigma)
         train_loader = data.DataLoader(trainset, batch_size=4,
                                        shuffle=True,
                                        pin_memory=torch.cuda.is_available(),
                                        num_workers=1)
-
-        # Set up operators, functional, and gradient.
-        pb = helper.setup_reconstruction_problem(image_size, device)
-        Kfun, Kadjfun, G, gradG, data_size = pb
 
         # Plot results.
         for inputs, labels in train_loader:
@@ -84,10 +78,10 @@ class TestData(unittest.TestCase):
             labels = labels.to(device, non_blocking=True)
 
             # Check data.
-            inputs_check = Kfun(labels)
+            inputs_check = K(labels)
 
             # Compute reconstruction.
-            outputs = Kadjfun(inputs)
+            outputs = Kadj(inputs)
 
             # Display results.
             disp_images = torch.cat((labels, outputs),
@@ -99,7 +93,7 @@ class TestData(unittest.TestCase):
                                     2).to(torch.device('cpu'))
             imshow(torchvision.utils.make_grid(disp_images, normalize=True))
 
-    def test_create_op_functions_cuda_cnn(self):
+    def test_create_op_functions_cnn(self):
 
         # Define data dir.
         data_dir = 'data/phantom_test/images'
@@ -108,8 +102,7 @@ class TestData(unittest.TestCase):
         cuda = torch.cuda.is_available()
 
         # Use CPU for testing.
-        cuda = False
-        device = torch.device('cuda:0' if cuda else 'cpu')
+        device = torch.device('cuda' if cuda else 'cpu')
 
         # Init random seed for reproducible experiments.
         torch.manual_seed(0)
@@ -122,21 +115,16 @@ class TestData(unittest.TestCase):
         sigma = 0.05
 
         # Set up operators, functional, and gradient.
-        pb = helper.setup_reconstruction_problem(image_size,
-                                                 torch.device('cpu'))
-        Kfun, Kadjfun, G, gradG, data_size = pb
+        pb = helper.setup_reconstruction_problem(image_size)
+        K, Kadj, G, gradG, data_size = pb
 
         # Define training set.
-        trainset = NoisyCTDataset(Kfun, data_dir, mode='train',
+        trainset = NoisyCTDataset(K, data_dir, mode='train',
                                   image_size=image_size, sigma=sigma)
         train_loader = data.DataLoader(trainset, batch_size=4,
                                        shuffle=True,
                                        pin_memory=torch.cuda.is_available(),
                                        num_workers=1)
-
-        # Set up operators, functional, and gradient.
-        pb = helper.setup_reconstruction_problem(image_size, device)
-        Kfun, Kadjfun, G, gradG, data_size = pb
 
         # Create model and push to GPU is available.
         denoising_model = DnCNN(D=6, C=64).to(device)
@@ -151,10 +139,10 @@ class TestData(unittest.TestCase):
             labels = labels.to(device, non_blocking=True)
 
             # Check data.
-            inputs_check = Kfun(labels)
+            inputs_check = K(labels)
 
             # Compute reconstruction.
-            outputs = Kadjfun(inputs)
+            outputs = Kadj(inputs)
 
             # Compute forward pass.
             with torch.no_grad():

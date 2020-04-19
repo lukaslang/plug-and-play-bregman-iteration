@@ -20,6 +20,125 @@
 """Encapsulates use of ASTRA Toolbox."""
 import astra
 import numpy as np
+import torch
+
+from pnpbi.util.torch.operators import LinearOperator
+
+
+class RadonTransform:
+    """Radon transform class to use with torch. Runs on CPU."""
+
+    def __init__(self, R, Radj, data_size: tuple):
+        """Constructor.
+
+        Args:
+        ----
+            R (function): A function that computes the 2D Radon transform for
+            a numpy array.
+
+            Radj (function): A function that computes the backprojection for
+            a numpy array.
+
+            data_size (tuple): The data size, i.e. (nangles, ndet).
+        """
+        def Rfun(x: torch.Tensor) -> torch.Tensor:
+            x_np = x.detach().cpu().numpy()
+            y_np = R(x_np)
+            return torch.from_numpy(y_np)
+
+        def Radjfun(y: torch.Tensor) -> torch.Tensor:
+            y_np = y.numpy()
+            x_np = Radj(y_np)
+            return torch.from_numpy(x_np)
+
+        self.R = Rfun
+        self.Radj = Radjfun
+        self.data_size = data_size
+
+        # Create torch function for linear operator.
+        self.Op = LinearOperator.apply
+
+    def __call__(self, x: torch.Tensor) -> torch.Tensor:
+        """Compute 2D Radon transform for a torch.Tensor.
+
+        Args:
+        ----
+            x (torch.Tensor): A tensor of shape (k, 1, *image_size).
+
+        Return:
+        ------
+            x (torch.Tensor): A tensor of shape (k, 1, *data_size).
+        """
+        # Number of images.
+        nimg = x.shape[0]
+
+        # Create output tensor.
+        y = x.new_ones((nimg, 1, *self.data_size))
+
+        # Apply Radon transform for each image.
+        for k in range(nimg):
+            y[k][0] = self.Op(x[k][0], self.R, self.Radj)
+
+        # Return result.
+        return y
+
+
+class BackProjection:
+    """Backprojection class to use with torch. Runs on CPU."""
+
+    def __init__(self, R, Radj, image_size: tuple):
+        """Constructor.
+
+        Args:
+        ----
+            R (function): A function that computes the 2D Radon transform for
+            a numpy array.
+
+            Radj (function): A function that computes the backprojection for
+            a numpy array.
+
+            image_size (tuple): The size of the original image, i.e. (m, n).
+        """
+        def Rfun(x: torch.Tensor) -> torch.Tensor:
+            x_np = x.detach().cpu().numpy()
+            y_np = R(x_np)
+            return torch.from_numpy(y_np)
+
+        def Radjfun(y: torch.Tensor) -> torch.Tensor:
+            y_np = y.detach().cpu().numpy()
+            x_np = Radj(y_np)
+            return torch.from_numpy(x_np)
+
+        self.R = Rfun
+        self.Radj = Radjfun
+        self.image_size = image_size
+
+        # Create torch function for linear operator.
+        self.Op = LinearOperator.apply
+
+    def __call__(self, x: torch.Tensor) -> torch.Tensor:
+        """Compute 2D backprojection for a torch.Tensor.
+
+        Args:
+        ----
+            x (torch.Tensor): A tensor of shape (k, 1, *data_size).
+
+        Return:
+        ------
+            x (torch.Tensor): A tensor of shape (k, 1, *image_size).
+        """
+        # Number of images.
+        nimg = x.shape[0]
+
+        # Create output tensor.
+        y = x.new_ones((nimg, 1, *self.image_size))
+
+        # Apply Radon transform for each image.
+        for k in range(nimg):
+            y[k][0] = self.Op(x[k][0], self.Radj, self.R)
+
+        # Return result.
+        return y
 
 
 def radon2d(m: int, n: int, angles: np.array, cuda=False):
@@ -54,7 +173,7 @@ def radon2d(m: int, n: int, angles: np.array, cuda=False):
     proj_type = 'cuda' if cuda else 'linear'
     alg = 'BP_CUDA' if cuda else 'BP'
 
-    def K(x):
+    def K(x: np.array) -> np.array:
         # Create sinogram.
         proj_id = astra.create_projector(proj_type, proj_geom, vol_geom)
         sino_id, sino = astra.create_sino(x, proj_id)
@@ -62,7 +181,7 @@ def radon2d(m: int, n: int, angles: np.array, cuda=False):
         astra.projector.delete(proj_id)
         return sino
 
-    def Kadj(sino):
+    def Kadj(sino: np.array) -> np.array:
         # Create objects for the reconstruction
         rec_id = astra.data2d.create('-vol', vol_geom)
         sino_id = astra.data2d.create('-sino', proj_geom, sino)

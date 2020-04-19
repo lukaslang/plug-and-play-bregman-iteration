@@ -21,45 +21,14 @@
 import torch
 
 
-def create_op_functions(K, Kadj, image_size, data_size, device):
-    """Create operater functions for use with torch.
-
-    Args:
-    ----
-        K, Kadj: Function handles for a linear operator and its adjoint.
-        image_size (tuple): A tuple specifying the image size, e.g. (m, n).
-        data_size (tuple): The data size, e.g. (nangles, ndet).
-        device (torch.device): The device to use.
-
-    Return:
-    ------
-        Kfun, Kadjfun: Generic function handles for use with torch functions.
-    """
-    # Create function for linear operator.
-    Op = LinearOperator.apply
-
-    # Create torch function that applies operator.
-    def Kfun(x):
-        nimg = x.shape[0]
-        y = torch.ones((nimg, 1, *data_size), device=device)
-        for k in range(nimg):
-            y[k][0] = Op(x[k][0], K, Kadj)
-        return y
-
-    # Create torch function that applies adjoint operator.
-    def Kadjfun(x):
-        nimg = x.shape[0]
-        y = torch.ones((nimg, 1, *image_size), device=device)
-        for k in range(nimg):
-            y[k][0] = Op(x[k][0], Kadj, K)
-        return y
-
-    # Return function handles.
-    return Kfun, Kadjfun
-
-
 class LinearOperator(torch.autograd.Function):
-    """An linear operator that is evaluated on the CPU."""
+    """An linear operator.
+
+    The function is required to handle torch.Tensor no matter whether device
+    of the input x is CPU or GPU, i.e. any required transfer has to be handled
+    by the operators K and Kadj.
+
+    """
 
     @staticmethod
     def forward(ctx, x, K, Kadj):
@@ -76,9 +45,9 @@ class LinearOperator(torch.autograd.Function):
             result (Tensor): The result of applying K to x.
         """
         ctx.Kadj = Kadj
-        result = x.new(K(x.detach().numpy()))
-        ctx.save_for_backward(x)
-        return result
+        # result = x.new(K(x.detach().numpy()))
+        # ctx.save_for_backward(x)
+        return K(x)
 
     @staticmethod
     def backward(ctx, grad_output):
@@ -94,6 +63,6 @@ class LinearOperator(torch.autograd.Function):
             result: A 3-tuple with the first element being the gradient with
             respect to the input.
         """
-        x, = ctx.saved_tensors
-        output = grad_output.numpy()
-        return x.new(ctx.Kadj(output)), None, None
+        # x, = ctx.saved_tensors
+        # output = grad_output.numpy()
+        return ctx.Kadj(grad_output), None, None

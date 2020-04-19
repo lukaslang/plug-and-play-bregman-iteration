@@ -27,38 +27,32 @@ from pnpbi.util import radon
 
 def setup_denoising_problem(image_size: tuple):
     """Set up denoising problem."""
-    data_size = image_size
 
     # Define identity operator for denoising.
     def K(x: torch.Tensor):
         """Identity operator."""
         return x
 
-    # Create function handles for use with torch.
-    Kfun, Kadjfun = operators.create_op_functions(K, K, image_size, data_size)
-
     # Create data fidelity and its gradient.
-    G, gradG = functionals.OpSqNormDataTerm(Kfun, Kadjfun)
+    G, gradG = functionals.OpSqNormDataTerm(K, K)
 
-    return Kfun, Kadjfun, G, gradG, data_size
+    return K, K, G, gradG, image_size
 
-
-def setup_reconstruction_problem(image_size, device):
+def setup_reconstruction_problem(image_size: tuple):
     """Set up reconstruction problem using Radon transform."""
     # Define angles.
     nangles = 180
     angles = np.linspace(0, np.pi, nangles, False)
 
     # Define Radon transform and adjoint.
-    K, Kadj, ndet = radon.radon2d(*image_size, angles)
+    R, Radj, ndet = radon.radon2d(*image_size, angles)
     data_size = (nangles, ndet)
 
-    # Create function handles for use with torch.
-    Kfun, Kadjfun = operators.create_op_functions(K, Kadj,
-                                                  image_size, data_size,
-                                                  device)
+    # Create instances for use with torch.
+    K = radon.RadonTransform(R, Radj, data_size)
+    Kadj = radon.BackProjection(R, Radj, image_size)
 
     # Create data fidelity and its gradient.
-    G, gradG = functionals.OpSqNormDataTerm(Kfun, Kadjfun)
+    G, gradG = functionals.OpSqNormDataTerm(K, Kadj)
 
-    return Kfun, Kadjfun, G, gradG, data_size
+    return K, Kadj, G, gradG, data_size
