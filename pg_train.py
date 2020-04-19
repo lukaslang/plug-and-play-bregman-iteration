@@ -50,7 +50,7 @@ parser.add_argument('--restore_file', default='checkpoint.pth.tar',
 
 def imshow(img):
     """Plot images."""
-    npimg = img.numpy()
+    npimg = img.cpu().numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)), cmap='gray')
     plt.colorbar()
 

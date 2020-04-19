@@ -3,5 +3,5 @@
     "batch_size": 10,
     "num_epochs": 20,
     "num_workers": 2,
-    "plot": true
+    "plot": false
 }
