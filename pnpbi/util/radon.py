@@ -47,7 +47,7 @@ class RadonTransform:
             return x.new(y_np)
 
         def Radjfun(y: torch.Tensor) -> torch.Tensor:
-            y_np = y.numpy()
+            y_np = y.cpu().numpy()
             x_np = Radj(y_np)
             return y.new(x_np)
 
@@ -105,7 +105,7 @@ class BackProjection:
             return x.new(y_np)
 
         def Radjfun(y: torch.Tensor) -> torch.Tensor:
-            y_np = y.detach().cpu().numpy()
+            y_np = y.cpu().numpy()
             x_np = Radj(y_np)
             return y.new(x_np)
 
