@@ -102,12 +102,12 @@ class BackProjection:
         def Rfun(x: torch.Tensor) -> torch.Tensor:
             x_np = x.detach().cpu().numpy()
             y_np = R(x_np)
-            return torch.from_numpy(y_np)
+            return x.new(y_np)
 
         def Radjfun(y: torch.Tensor) -> torch.Tensor:
             y_np = y.detach().cpu().numpy()
             x_np = Radj(y_np)
-            return torch.from_numpy(x_np)
+            return y.new(x_np)
 
         self.R = Rfun
         self.Radj = Radjfun
