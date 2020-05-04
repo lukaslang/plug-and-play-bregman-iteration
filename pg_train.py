@@ -221,7 +221,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     json_path = os.path.join(args.model_dir, 'params.json')
     assert os.path.isfile(
-        json_path), "No json configuration file found at {}".format(json_path)
+        json_path), "No JSON configuration file found at {}".format(json_path)
     params = utils.Params(json_path)
 
     # Check and use GPU if available.
@@ -246,6 +246,7 @@ if __name__ == '__main__':
 
     # Set up operators, functional, and gradient.
     pb = helper.setup_reconstruction_problem(image_size)
+    # pb = helper.setup_denoising_problem(image_size)
     K, Kadj, G, gradG, data_size = pb
 
     # Define training set.
